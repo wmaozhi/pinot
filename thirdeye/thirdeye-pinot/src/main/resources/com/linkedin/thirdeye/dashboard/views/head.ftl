@@ -48,6 +48,7 @@
     <script src="../../../assets/js/lib/tabular.js" defer></script>
     <script src="../../../assets/js/lib/contributors.js" defer></script>
     <script src="../../../assets/js/lib/heatmap.js" defer></script>
+
     <script src="../../../assets/js/lib/timeseries.js" defer></script>
     <script src="../../../assets/js/lib/anomalies.js" defer></script>
     <script src="../../../assets/js/lib/self-service.js" defer></script>
@@ -62,4 +63,5 @@
     <script src="../../../assets/js/dashboard.js" defer></script>
     <script src="../../../assets/js/lib/anomalies2.js" defer></script>
     <script src="../../../assets/js/lib/anomalies3.js" defer></script>
+
 </head>
