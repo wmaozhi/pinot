@@ -117,6 +117,12 @@
         <version>${dropwizard.version}</version>
       </dependency>
       <dependency>
+        <groupId>io.dropwizard</groupId>
+        <artifactId>dropwizard-jdbi</artifactId>
+        <version>${dropwizard.version}</version>
+      </dependency>
+
+      <dependency>
         <!-- TODO: remove this once completely moved to jpa -->
         <groupId>io.dropwizard</groupId>
         <artifactId>dropwizard-hibernate</artifactId>
