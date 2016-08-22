@@ -15,23 +15,33 @@ import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 public class GenericResultSetMapper {
 
   ModelMapper modelMapper = new ModelMapper();
+
   {
     modelMapper.getConfiguration().setSourceNameTokenizer(NameTokenizers.UNDERSCORE);
   }
 
-  @SuppressWarnings("unchecked")
-  public <E extends AbstractBaseEntity> E mapSingle(ResultSet rs, Class<E> entityClass) throws Exception {
+  public AbstractBaseEntity mapSingle(ResultSet rs, Class<? extends AbstractBaseEntity> entityClass)
+      throws Exception {
     List<Map<String, Object>> resultMapList = toResultMapList(rs);
     if (resultMapList.size() > 0) {
       Map<String, Object> map = resultMapList.get(0);
       AbstractBaseEntity entity = modelMapper.map(map, entityClass);
-      return (E) entity;
+      return entity;
     }
     return null;
   }
 
-  <E extends AbstractBaseEntity> List<E> mapAll(ResultSet rs, AbstractBaseEntity E) {
-
+  public List<AbstractBaseEntity> mapAll(ResultSet rs,
+      Class<? extends AbstractBaseEntity> entityClass) throws Exception {
+    List<Map<String, Object>> resultMapList = toResultMapList(rs);
+    List<AbstractBaseEntity> resultEntityList = new ArrayList<>();
+    if (resultMapList.size() > 0) {
+      for (Map<String, Object> map : resultMapList) {
+        AbstractBaseEntity entity = modelMapper.map(map, entityClass);
+        resultEntityList.add(entity);
+      }
+      return resultEntityList;
+    }
     return null;
   }
 
