@@ -2,6 +2,7 @@ package com.linkedin.thirdeye.detector;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.jetty.ConnectorFactory;
@@ -16,6 +17,7 @@ import io.dropwizard.setup.Environment;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.StringUtils;
@@ -120,7 +122,9 @@ public class ThirdEyeDetectorApplication
     environment.lifecycle().manage(new Managed() {
       @Override
       public void start() throws Exception {
-        List<AnomalyFunctionSpec> functions = anomalyFunctionDAO.findAll();
+        Map<String, Object> filters = new HashMap<>();
+        filters.put("isActive", "true");
+        List<AnomalyFunctionSpec> functions = anomalyFunctionDAO.findByParams(filters);
         LinkedList<AnomalyFunctionSpec> failedToStart = new LinkedList<AnomalyFunctionSpec>();
         for (AnomalyFunctionSpec function : functions) {
           if (function.getIsActive()) {

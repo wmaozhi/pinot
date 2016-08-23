@@ -5,12 +5,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 import com.linkedin.thirdeye.dbi.GenericResultSetMapper;
+import com.linkedin.thirdeye.dbi.Predicate;
 import com.linkedin.thirdeye.dbi.SqlQueryBuilder;
 import javax.sql.DataSource;
 
@@ -71,10 +73,26 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
     return null;
   }
 
+  @SuppressWarnings("unchecked")
+  public List<E> findAll() {
+    try {
+      PreparedStatement selectStatement =
+          sqlQueryBuilder.createFindAllStatement(getConnection(), entityClass);
+      ResultSet resultSet = selectStatement.executeQuery();
+      return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return null;
+  }
+
   public int deleteById(Long id) {
     try (Connection connection = getConnection()) {
+      Map<String, Object> filters = new HashMap<>();
+      filters.put("id", id);
       PreparedStatement deleteStatement =
-          sqlQueryBuilder.createDeleteByIdStatement(connection, entityClass, id);
+          sqlQueryBuilder.createDeleteByIdStatement(connection, entityClass, filters );
       return deleteStatement.executeUpdate();
     } catch (Exception e) {
       e.printStackTrace();
@@ -82,11 +100,41 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
     return 0;
   }
 
+  public int deleteByParams(Map<String, Object> filters) {
+    try {
+      PreparedStatement deleteStatement =
+          sqlQueryBuilder.createDeleteByIdStatement(getConnection(), entityClass, filters);
+      return deleteStatement.executeUpdate();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return 0;
+  }
+  
+  public List<E> executeParameterizedSQL(String parameterizedSQL, Map<String,Object> parameterMap){
+    PreparedStatement selectStatement = sqlQueryBuilder.createStatementFromSQL(parameterizedSQL, parameterMap);
+    return null;
+  }
+  
+  
   @SuppressWarnings("unchecked")
   public List<E> findByParams(Map<String, Object> filters) {
     try (Connection connection = getConnection()) {
       PreparedStatement selectStatement =
           sqlQueryBuilder.createFindByParamsStatement(connection, entityClass, filters);
+      ResultSet resultSet = selectStatement.executeQuery();
+      return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  public List<E> findByParams(Predicate predicate) {
+    try {
+      PreparedStatement selectStatement =
+          sqlQueryBuilder.createFindByParamsStatement(getConnection(), entityClass, predicate);
       ResultSet resultSet = selectStatement.executeQuery();
       return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
     } catch (Exception e) {
@@ -116,5 +164,8 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
     }
     return 0;
   }
-
 }
+
+
+
+

@@ -56,10 +56,6 @@ public class AnomalyFunctionSpecResource {
   @GET
   @Timed
   public List<AnomalyFunctionSpec> findAll(@QueryParam("collection") String collection) {
-    if (collection == null) {
-      return dao.findAll();
-    } else {
-      return dao.findAllByCollection(collection);
-    }
+    return dao.findAllByCollection(collection);
   }
 }
