@@ -250,7 +250,4 @@ public class SqlQueryBuilder {
     builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
 
   }
-
-
-
 }
