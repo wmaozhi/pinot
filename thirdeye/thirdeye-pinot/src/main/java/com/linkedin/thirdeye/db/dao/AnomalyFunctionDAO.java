@@ -1,32 +1,33 @@
 package com.linkedin.thirdeye.db.dao;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.persist.Transactional;
 import com.linkedin.thirdeye.db.entity.AnomalyFunctionSpec;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
-public class AnomalyFunctionDAO extends AbstractJpaDAO<AnomalyFunctionSpec> {
-
-  private static final String FIND_DISTINCT_METRIC_BY_COLLECTION =
-      "SELECT DISTINCT(af.metric) FROM AnomalyFunctionSpec af WHERE af.collection = :collection";
+public class AnomalyFunctionDAO extends AbstractBaseDAO<AnomalyFunctionSpec> {
 
   public AnomalyFunctionDAO() {
     super(AnomalyFunctionSpec.class);
   }
 
-  @Transactional
   public List<AnomalyFunctionSpec> findAllByCollection(String collection) {
     return super.findByParams(ImmutableMap.of("collection", collection));
   }
 
-  @Transactional
   public List<String> findDistinctMetricsByCollection(String collection) {
-    return getEntityManager().createQuery(FIND_DISTINCT_METRIC_BY_COLLECTION, String.class)
-        .setParameter("collection", collection).getResultList();
+    Set<String> uniqueMetricSet = new TreeSet<>();
+    List<AnomalyFunctionSpec> findByParams =
+        super.findByParams(ImmutableMap.of("collection", collection));
+    for (AnomalyFunctionSpec anomalyFunctionSpec : findByParams) {
+      uniqueMetricSet.add(anomalyFunctionSpec.getMetric());
+    }
+    return new ArrayList<>(uniqueMetricSet);
   }
 
-  @Transactional
   public List<AnomalyFunctionSpec> findAllActiveFunctions() {
     return super.findByParams(ImmutableMap.of("isActive", true));
   }

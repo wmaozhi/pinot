@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.h2.jdbcx.JdbcDataSource;
 
@@ -32,7 +33,13 @@ public class SqlQueryBuilder {
   Map<String, BiMap<String, String>> columnMappingPerTable = new HashMap<>();
   //insert sql per table
   Map<String, String> insertSqlMap = new HashMap<>();
+  private static final String NAME_REGEX = "[a-z][_a-z0-9]*";
 
+  private static final String PARAM_REGEX = ":(" + NAME_REGEX + ")";
+  private static final Pattern NAME_PATTERN = Pattern.compile(NAME_REGEX, Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern PARAM_PATTERN = Pattern.compile(PARAM_REGEX, Pattern.CASE_INSENSITIVE);
+  
   public void register(Connection connection, Class<? extends AbstractBaseEntity> entityClass,
       String tableName) throws Exception {
     DatabaseMetaData databaseMetaData = connection.getMetaData();
@@ -218,11 +225,27 @@ public class SqlQueryBuilder {
   }
 
   public PreparedStatement createDeleteByIdStatement(Connection connection,
-      Class<? extends AbstractBaseEntity> entityClass, Long id) throws Exception {
+      Class<? extends AbstractBaseEntity> entityClass,  Map<String, Object> filters) throws Exception {
     String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
-    String sql = "Delete from " + tableName + " where id=?";
-    PreparedStatement prepareStatement = connection.prepareStatement(sql);
-    prepareStatement.setLong(1, id);
+    BiMap<String, String> entityNameToDBNameMapping =
+        columnMappingPerTable.get(tableName).inverse();
+    StringBuilder sqlBuilder = new StringBuilder("DELETE FROM " + tableName);
+    StringBuilder whereClause = new StringBuilder(" WHERE ");
+    LinkedHashMap<String, Object> parametersMap = new LinkedHashMap<>();
+    for (String columnName : filters.keySet()) {
+      String dbFieldName = entityNameToDBNameMapping.get(columnName);
+      whereClause.append(dbFieldName).append("=").append("?");
+      parametersMap.put(dbFieldName, filters.get(columnName));
+    }
+    sqlBuilder.append(whereClause.toString());
+    PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
+    int parameterIndex = 1;
+    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    for (Entry<String, Object> paramEntry : parametersMap.entrySet()) {
+      String dbFieldName = paramEntry.getKey();
+      ColumnInfo info = columnInfoMap.get(dbFieldName);
+      prepareStatement.setObject(parameterIndex++, paramEntry.getValue(), info.sqlType);
+    }
     return prepareStatement;
   }
 
@@ -250,4 +273,68 @@ public class SqlQueryBuilder {
     builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
 
   }
+
+  public PreparedStatement createFindAllStatement(Connection connection,
+      Class<? extends AbstractBaseEntity> entityClass) throws Exception {
+    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String sql = "Select * from " + tableName;
+    PreparedStatement prepareStatement = connection.prepareStatement(sql);
+    return prepareStatement;
+  }
+
+  public PreparedStatement createFindByParamsStatement(Connection connection,
+      Class<? extends AbstractBaseEntity> entityClass, Predicate predicate) throws Exception {
+    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    BiMap<String, String> entityNameToDBNameMapping =
+        columnMappingPerTable.get(tableName).inverse();
+    StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM " + tableName);
+    StringBuilder whereClause = new StringBuilder(" WHERE ");
+    LinkedHashMap<String, Object> parametersMap = new LinkedHashMap<>();
+    generateWhereClause(entityNameToDBNameMapping, predicate, parametersMap, whereClause);
+    sqlBuilder.append(whereClause.toString());
+    PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
+    int parameterIndex = 1;
+    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    for (Entry<String, Object> paramEntry : parametersMap.entrySet()) {
+      String dbFieldName = paramEntry.getKey();
+      ColumnInfo info = columnInfoMap.get(dbFieldName);
+      prepareStatement.setObject(parameterIndex++, paramEntry.getValue(), info.sqlType);
+    }
+    return prepareStatement;
+  }
+
+  private void generateWhereClause(BiMap<String, String> entityNameToDBNameMapping,
+      Predicate predicate, LinkedHashMap<String, Object> parametersMap, StringBuilder whereClause) {
+    switch (predicate.getOper()) {
+      case AND:
+      case OR:
+        whereClause.append("(");
+        String delim ="";
+        for (Predicate childPredicate : predicate.getChildPredicates()) {
+          whereClause.append(delim);
+          generateWhereClause(entityNameToDBNameMapping, childPredicate, parametersMap,
+              whereClause);
+          delim = "  " + predicate.getOper().toString() + " ";
+        }
+        whereClause.append(")");
+        break;
+      case EQ:
+      case GT:
+      case IN:
+      case LT:
+      case NEQ:
+        whereClause.append(predicate.getLhs()).append(predicate.getOper().toString()).append("?");
+        parametersMap.put(entityNameToDBNameMapping.get(predicate.getLhs()), predicate.getRhs());
+        break;
+      default:
+        break;
+
+    }
+  }
+
+  public PreparedStatement createStatementFromSQL(String parameterizedSQL,
+      Map<String, Object> parameterMap) {
+    return null;
+  }
+
 }

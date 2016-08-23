@@ -78,6 +78,8 @@ public abstract class PersistenceUtil {
   }
 
   public static <T> T getInstance(Class<T> c) {
-    return getInjector().getInstance(c);
+    T instance = getInjector().getInstance(c);
+    
+    return instance;
   }
 }
