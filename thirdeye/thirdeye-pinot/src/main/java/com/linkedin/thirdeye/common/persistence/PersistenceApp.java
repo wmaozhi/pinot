@@ -28,8 +28,7 @@ public class PersistenceApp extends Application<PersistenceConfig> {
     bootstrap.addBundle(new MigrationsBundle<PersistenceConfig>() {
       public DataSourceFactory getDataSourceFactory(PersistenceConfig config) {
         DataSourceFactory dataSourceFactory = new DataSourceFactory();
-        Map<String, String> props = config.getDatabaseConfiguration().getProperties();
-        dataSourceFactory.setDriverClass(props.get("hibernate.connection.driver_class"));
+        dataSourceFactory.setDriverClass(config.getDatabaseConfiguration().getDriver());
         dataSourceFactory.setUrl(config.getDatabaseConfiguration().getUrl());
         dataSourceFactory.setPassword(config.getDatabaseConfiguration().getPassword());
         dataSourceFactory.setUser(config.getDatabaseConfiguration().getUser());
