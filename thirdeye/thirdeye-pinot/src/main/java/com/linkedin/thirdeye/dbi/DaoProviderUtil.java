@@ -34,10 +34,11 @@ public abstract class DaoProviderUtil {
     dataSource.setInitialSize(10);
     dataSource.setDefaultAutoCommit(true);
     dataSource.setMaxActive(100);
-    dataSource.setUsername("sa");
-    dataSource.setPassword("sa");
-    dataSource.setUrl("jdbc:h2:~/test");
-    dataSource.setDriverClassName("org.h2.Driver");
+    dataSource.setUsername(configuration.getDatabaseConfiguration().getUser());
+    dataSource.setPassword(configuration.getDatabaseConfiguration().getPassword());
+    dataSource.setUrl(configuration.getDatabaseConfiguration().getUrl());
+    dataSource.setDriverClassName(configuration.getDatabaseConfiguration().getDriver());
+
     DataSourceModule dataSourceModule = new DataSourceModule(dataSource);
     injector = Guice.createInjector(dataSourceModule);
   }

@@ -76,18 +76,16 @@ public class AnomalyFeedbackDAOTest {
     Map<String, Object> parameterMap = new HashMap<>();
     parameterMap.put("status", FeedbackStatus.RESOLVED);
     parameterMap.put("feedbackType", AnomalyFeedbackType.NOT_ANOMALY);
-    
+
     List<AnomalyFeedback> feedbacks = dao.executeParameterizedSQL(parameterizedSQL , parameterMap);
     System.out.println("result executing parameterized sql:"+ feedbacks);
 
     //DELETE TEST
     int numRowsDeleted = dao.deleteById(1L);
     System.out.println("Num rows Deleted " + numRowsDeleted);
-    
+
     //READ THE DELETED ROW
     AnomalyFeedback deletedFeedback = dao.findById(1L);
     System.out.println("Retreived deletedFeedback must be null: " + deletedFeedback);
-
-
   }
 }

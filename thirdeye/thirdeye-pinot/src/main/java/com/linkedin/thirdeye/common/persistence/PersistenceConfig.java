@@ -26,6 +26,8 @@ public class PersistenceConfig extends Configuration {
     private String user;
     private String password;
     private String url;
+    private String driver;
+
     private Map<String, String> properties = Maps.newLinkedHashMap();
 
     public String getUser() {
@@ -58,6 +60,14 @@ public class PersistenceConfig extends Configuration {
 
     public void setUrl(String url) {
       this.url = url;
+    }
+
+    public String getDriver() {
+      return driver;
+    }
+
+    public void setDriver(String driver) {
+      this.driver = driver;
     }
   }
 }

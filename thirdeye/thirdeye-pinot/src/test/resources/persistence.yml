@@ -2,5 +2,4 @@ databaseConfiguration:
   url: jdbc:h2:~/test
   user: sa
   password: sa
-  properties:
-    hibernate.connection.driver_class: org.h2.Driver
+  driver: org.h2.Driver

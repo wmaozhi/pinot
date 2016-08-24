@@ -42,7 +42,6 @@ public abstract class AbstractDbTestBase {
 
   @BeforeClass(alwaysRun = true)
   public void init() throws Exception {
-    
     URL url = AbstractDbTestBase.class.getResource("/persistence.yml");
     FileUtils.deleteDirectory(new File("~/test"));
     PersistenceApp.main(new String[] {"db", "migrate", new File(url.getFile()).getParent()});
@@ -59,12 +58,13 @@ public abstract class AbstractDbTestBase {
 //    entityManager = DaoProviderUtil.getInstance(EntityManager.class);
   }
 
-  //@AfterClass(alwaysRun = false)
+  @AfterClass(alwaysRun = false)
   public void cleanUp() throws Exception {
-    if (entityManager.getTransaction().isActive()) {
-      entityManager.getTransaction().rollback();
-    }
-    clearDatabase();
+
+//    if(entityManager.getTransaction().isActive()) {
+//      entityManager.getTransaction().rollback();
+//    }
+//    clearDatabase();
   }
 
   public void clearDatabase() throws Exception{
