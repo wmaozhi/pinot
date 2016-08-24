@@ -89,7 +89,7 @@ public class TestAnomalyTaskDAO extends AbstractDbTestBase {
     jobSpec.setTaskStartTime(new DateTime().minusDays(20).getMillis());
     jobSpec.setTaskEndTime(new DateTime().minusDays(10).getMillis());
     jobSpec.setTaskInfo(new ObjectMapper().writeValueAsString(getTestMonitorTaskInfo()));
-    jobSpec.setJob(anomalyJobSpec);
+    jobSpec.setJobId(anomalyJobSpec.getId());
     return jobSpec;
   }
 

@@ -7,6 +7,8 @@ import com.google.inject.Provides;
 import com.linkedin.thirdeye.common.persistence.PersistenceConfig;
 import com.linkedin.thirdeye.common.persistence.PersistenceUtil;
 import com.linkedin.thirdeye.db.entity.AnomalyFeedback;
+import com.linkedin.thirdeye.db.entity.AnomalyFunctionSpec;
+
 import io.dropwizard.configuration.ConfigurationFactory;
 import io.dropwizard.jackson.Jackson;
 import java.io.File;
@@ -26,7 +28,7 @@ public abstract class DaoProviderUtil {
     dataSource.setMaxActive(100);
     dataSource.setUsername("sa");
     dataSource.setPassword("sa");
-    dataSource.setUrl("jdbc:h2:mem:test");
+    dataSource.setUrl("jdbc:h2:~/test");
     dataSource.setDriverClassName("org.h2.Driver");
     DataSourceModule dataSourceModule = new DataSourceModule(dataSource);
     injector = Guice.createInjector(dataSourceModule);
@@ -59,6 +61,7 @@ public abstract class DaoProviderUtil {
       try (Connection conn = dataSource.getConnection()) {
         builder = new SqlQueryBuilder();
         builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
+        builder.register(conn, AnomalyFunctionSpec.class, "ANOMALY_FUNCTIONS");
       } catch (Exception e) {
         e.printStackTrace();
       }

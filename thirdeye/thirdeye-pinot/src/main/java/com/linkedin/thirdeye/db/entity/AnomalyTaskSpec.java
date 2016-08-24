@@ -29,9 +29,8 @@ import com.linkedin.thirdeye.anomaly.task.TaskConstants.TaskType;
 
 public class AnomalyTaskSpec extends AbstractBaseEntity {
 
-  @ManyToOne(cascade = CascadeType.MERGE, fetch = FetchType.EAGER, optional = true)
   @JoinColumn(name = "job_id")
-  private AnomalyJobSpec job;
+  private Long jobId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "task_type", nullable = false)
@@ -64,13 +63,13 @@ public class AnomalyTaskSpec extends AbstractBaseEntity {
   @Column(name = "version", columnDefinition = "integer DEFAULT 0", nullable = false)
   private int version;
 
-
-  public AnomalyJobSpec getJob() {
-    return job;
+  
+  public Long getJobId() {
+    return jobId;
   }
 
-  public void setJob(AnomalyJobSpec job) {
-    this.job = job;
+  public void setJobId(Long jobId) {
+    this.jobId = jobId;
   }
 
   public Long getWorkerId() {
@@ -146,16 +145,16 @@ public class AnomalyTaskSpec extends AbstractBaseEntity {
     AnomalyTaskSpec af = (AnomalyTaskSpec) o;
     return Objects.equals(getId(), af.getId()) && Objects.equals(status, af.getStatus())
         && Objects.equals(taskStartTime, af.getTaskStartTime()) && Objects.equals(taskEndTime, af.getTaskEndTime())
-        && Objects.equals(taskInfo, af.getTaskInfo()) && Objects.equals(job, af.getJob());
+        && Objects.equals(taskInfo, af.getTaskInfo()) && Objects.equals(jobId, af.getJobId());
   }
 
   @Override public int hashCode() {
-    return Objects.hash(getId(), job, status, taskStartTime, taskEndTime, taskInfo);
+    return Objects.hash(getId(), jobId, status, taskStartTime, taskEndTime, taskInfo);
   }
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("id", getId()).add("job", getJob())
+    return MoreObjects.toStringHelper(this).add("id", getId()).add("jobId", getJobId())
         .add("status", status).add("startTime", taskStartTime).add("endTime", taskEndTime)
         .add("taskInfo", taskInfo).add("lastModified", lastModified).toString();
   }

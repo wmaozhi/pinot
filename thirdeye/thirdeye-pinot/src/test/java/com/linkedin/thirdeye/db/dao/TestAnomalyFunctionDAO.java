@@ -41,7 +41,7 @@ public class TestAnomalyFunctionDAO extends AbstractDbTestBase {
     Assert.assertNotNull(spec);
     Assert.assertEquals(spec.getMetricFunction(), MetricAggFunction.SUM);
     spec.setMetricFunction(MetricAggFunction.COUNT);
-    anomalyFunctionDAO.save(spec);
+    anomalyFunctionDAO.update(spec);
     AnomalyFunctionSpec specReturned = anomalyFunctionDAO.findById(anomalyFunctionId);
     Assert.assertEquals(specReturned.getMetricFunction(), MetricAggFunction.COUNT);
   }

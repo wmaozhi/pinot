@@ -13,14 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.h2.jdbcx.JdbcDataSource;
-
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
-import com.linkedin.thirdeye.db.entity.AnomalyFeedback;
 import com.mysql.jdbc.Statement;
 
 
@@ -36,10 +33,10 @@ public class SqlQueryBuilder {
   private static final String NAME_REGEX = "[a-z][_a-z0-9]*";
 
   private static final String PARAM_REGEX = ":(" + NAME_REGEX + ")";
-  private static final Pattern NAME_PATTERN = Pattern.compile(NAME_REGEX, Pattern.CASE_INSENSITIVE);
 
-  private static final Pattern PARAM_PATTERN = Pattern.compile(PARAM_REGEX, Pattern.CASE_INSENSITIVE);
-  
+  private static final Pattern PARAM_PATTERN =
+      Pattern.compile(PARAM_REGEX, Pattern.CASE_INSENSITIVE);
+
   public void register(Connection connection, Class<? extends AbstractBaseEntity> entityClass,
       String tableName) throws Exception {
     DatabaseMetaData databaseMetaData = connection.getMetaData();
@@ -136,7 +133,11 @@ public class SqlQueryBuilder {
       if (!columnInfo.columnNameInDB.toLowerCase().equals("id")) {
         Object val = columnInfo.field.get(entity);
         System.out.println("Setting value:" + val + " for " + columnInfo.columnNameInDB);
-        preparedStatement.setObject(parameterIndex++, val.toString(), columnInfo.sqlType);
+        if (val != null) {
+          preparedStatement.setObject(parameterIndex++, val.toString(), columnInfo.sqlType);
+        } else {
+          preparedStatement.setNull(parameterIndex++, columnInfo.sqlType);
+        }
       }
     }
     return preparedStatement;
@@ -144,11 +145,9 @@ public class SqlQueryBuilder {
 
   public static List<Field> getAllFields(List<Field> fields, Class<?> type) {
     fields.addAll(Arrays.asList(type.getDeclaredFields()));
-
     if (type.getSuperclass() != null) {
       fields = getAllFields(fields, type.getSuperclass());
     }
-
     return fields;
   }
 
@@ -225,7 +224,8 @@ public class SqlQueryBuilder {
   }
 
   public PreparedStatement createDeleteByIdStatement(Connection connection,
-      Class<? extends AbstractBaseEntity> entityClass,  Map<String, Object> filters) throws Exception {
+      Class<? extends AbstractBaseEntity> entityClass, Map<String, Object> filters)
+          throws Exception {
     String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     BiMap<String, String> entityNameToDBNameMapping =
         columnMappingPerTable.get(tableName).inverse();
@@ -254,24 +254,6 @@ public class SqlQueryBuilder {
     int sqlType;
     String columnNameInEntity;
     Field field;
-  }
-
-  public static void main(String[] args) throws Exception {
-    JdbcDataSource ds = new JdbcDataSource();
-    ds.setURL("jdbc:h2:mem:test");
-    ds.setUser("sa");
-    ds.setPassword("sa");
-    Connection conn = ds.getConnection();
-    conn.setAutoCommit(true);
-    conn.createStatement().execute(
-        "Create table anomaly_feedback (id bigint, feedback_type varchar(150), comment varchar(500), status varchar(200))");
-    ResultSet resultSet = conn.getMetaData().getTables(null, null, null, null);
-    while (resultSet.next()) {
-      System.out.println(resultSet.getString(3));
-    }
-    SqlQueryBuilder builder = new SqlQueryBuilder();
-    builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
-
   }
 
   public PreparedStatement createFindAllStatement(Connection connection,
@@ -309,7 +291,7 @@ public class SqlQueryBuilder {
       case AND:
       case OR:
         whereClause.append("(");
-        String delim ="";
+        String delim = "";
         for (Predicate childPredicate : predicate.getChildPredicates()) {
           whereClause.append(delim);
           generateWhereClause(entityNameToDBNameMapping, childPredicate, parametersMap,
@@ -332,9 +314,49 @@ public class SqlQueryBuilder {
     }
   }
 
-  public PreparedStatement createStatementFromSQL(String parameterizedSQL,
-      Map<String, Object> parameterMap) {
-    return null;
+  public PreparedStatement createStatementFromSQL(Connection connection, String parameterizedSQL,
+      Map<String, Object> parameterMap, Class<? extends AbstractBaseEntity> entityClass)
+          throws Exception {
+    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    parameterizedSQL = parameterizedSQL.replace(entityClass.getSimpleName(), tableName);
+    StringBuilder psSql = new StringBuilder();
+    List<String> paramNames = new ArrayList<String>();
+    Matcher m = PARAM_PATTERN.matcher(parameterizedSQL);
+
+    int index = 0;
+    while (m.find(index)) {
+      psSql.append(parameterizedSQL.substring(index, m.start()));
+      String name = m.group(1);
+      index = m.end();
+      if (parameterMap.containsKey(name)) {
+        psSql.append("?");
+        paramNames.add(name);
+      } else {
+        throw new IllegalArgumentException(
+            "Unknown parameter '" + name + "' at position " + m.start());
+      }
+    }
+
+    // Any stragglers?
+    psSql.append(parameterizedSQL.substring(index));
+    String sql = psSql.toString();
+    BiMap<String, String> dbNameToEntityNameMapping = columnMappingPerTable.get(tableName);
+    for (Entry<String, String> entry : dbNameToEntityNameMapping.entrySet()) {
+      String dbName = entry.getKey();
+      String entityName = entry.getValue();
+      sql = sql.toString().replaceAll(entityName, dbName);
+    }
+    System.out.println("Generated SQL:" + sql);
+    PreparedStatement ps = connection.prepareStatement(sql);
+    int parameterIndex = 1;
+    LinkedHashMap<String, ColumnInfo> columnInfo = columnInfoPerTable.get(tableName);
+    for (String entityFieldName : paramNames) {
+      String dbFieldName = dbNameToEntityNameMapping.inverse().get(entityFieldName);
+      ps.setObject(parameterIndex++, parameterMap.get(entityFieldName).toString(),
+          columnInfo.get(dbFieldName).sqlType);
+    }
+
+    return ps;
   }
 
 }

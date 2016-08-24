@@ -6,6 +6,8 @@ import io.dropwizard.db.DataSourceFactory;
 import io.dropwizard.migrations.MigrationsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +62,7 @@ public class PersistenceApp extends Application<PersistenceConfig> {
     int lastIndex = argList.size() - 1;
     String thirdEyeConfigDir = argList.get(lastIndex);
     String dbConfigFile = thirdEyeConfigDir + "/" + "persistence.yml";
+    System.out.println(new File(dbConfigFile).exists() + " " + dbConfigFile);
     argList.set(lastIndex, dbConfigFile);
     new PersistenceApp().run(argList.toArray(new String[argList.size()]));
   }

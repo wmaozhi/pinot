@@ -266,8 +266,10 @@
     <!-- Function dependencies for each email report -->
     <createTable tableName="email_function_dependencies">
       <column name="email_id" type="bigint">
+        <constraints nullable="false"/>
       </column>
       <column name="function_id" type="bigint">
+        <constraints nullable="false"/>
       </column>
     </createTable>
     <sql dbms="mysql">

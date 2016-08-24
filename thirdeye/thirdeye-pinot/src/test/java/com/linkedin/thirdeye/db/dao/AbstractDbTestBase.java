@@ -1,6 +1,7 @@
 package com.linkedin.thirdeye.db.dao;
 
 import com.linkedin.thirdeye.anomaly.job.JobConstants;
+import com.linkedin.thirdeye.common.persistence.PersistenceApp;
 import com.linkedin.thirdeye.common.persistence.PersistenceUtil;
 import com.linkedin.thirdeye.constant.MetricAggFunction;
 
@@ -8,6 +9,9 @@ import com.linkedin.thirdeye.db.entity.AnomalyFunctionSpec;
 import com.linkedin.thirdeye.db.entity.AnomalyJobSpec;
 import com.linkedin.thirdeye.db.entity.AnomalyResult;
 import com.linkedin.thirdeye.db.entity.EmailConfiguration;
+import com.linkedin.thirdeye.dbi.DaoProviderUtil;
+import com.linkedin.thirdeye.dbi.dao.AnomalyFeedbackDAOTest;
+
 import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -19,6 +23,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.persistence.EntityManager;
+
+import org.apache.commons.io.FileUtils;
 import org.hibernate.internal.SessionImpl;
 import org.joda.time.DateTime;
 import org.testng.annotations.AfterClass;
@@ -35,21 +41,25 @@ public abstract class AbstractDbTestBase {
   private EntityManager entityManager;
 
   @BeforeClass(alwaysRun = true)
-  public void init() throws URISyntaxException {
+  public void init() throws Exception {
+    
     URL url = AbstractDbTestBase.class.getResource("/persistence.yml");
+    FileUtils.deleteDirectory(new File("~/test"));
+    PersistenceApp.main(new String[] {"db", "migrate", new File(url.getFile()).getParent()});
     File configFile = new File(url.toURI());
-    PersistenceUtil.init(configFile);
-    anomalyFunctionDAO = PersistenceUtil.getInstance(AnomalyFunctionDAO.class);
-    anomalyResultDAO = PersistenceUtil.getInstance(AnomalyResultDAO.class);
-    anomalyJobDAO = PersistenceUtil.getInstance(AnomalyJobDAO.class);
-    anomalyTaskDAO = PersistenceUtil.getInstance(AnomalyTaskDAO.class);
-    emailConfigurationDAO = PersistenceUtil.getInstance(EmailConfigurationDAO.class);
-    mergedResultDAO = PersistenceUtil.getInstance(AnomalyMergedResultDAO.class);
-    webappConfigDAO = PersistenceUtil.getInstance(WebappConfigDAO.class);
-    entityManager = PersistenceUtil.getInstance(EntityManager.class);
+    DaoProviderUtil.init(configFile);
+    //PersistenceUtil.init(configFile);
+    anomalyFunctionDAO = DaoProviderUtil.getInstance(AnomalyFunctionDAO.class);
+    anomalyResultDAO = DaoProviderUtil.getInstance(AnomalyResultDAO.class);
+//    anomalyJobDAO = DaoProviderUtil.getInstance(AnomalyJobDAO.class);
+//    anomalyTaskDAO = DaoProviderUtil.getInstance(AnomalyTaskDAO.class);
+//    emailConfigurationDAO = DaoProviderUtil.getInstance(EmailConfigurationDAO.class);
+//    mergedResultDAO = DaoProviderUtil.getInstance(AnomalyMergedResultDAO.class);
+//    webappConfigDAO = DaoProviderUtil.getInstance(WebappConfigDAO.class);
+//    entityManager = DaoProviderUtil.getInstance(EntityManager.class);
   }
 
-  @AfterClass(alwaysRun = true)
+  //@AfterClass(alwaysRun = false)
   public void cleanUp() throws Exception {
     if(entityManager.getTransaction().isActive()) {
       entityManager.getTransaction().rollback();

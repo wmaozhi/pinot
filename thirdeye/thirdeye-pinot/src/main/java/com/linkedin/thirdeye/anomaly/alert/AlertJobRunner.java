@@ -133,8 +133,7 @@ public class AlertJobRunner implements Job {
         anomalyTaskSpec.setStatus(TaskStatus.WAITING);
         anomalyTaskSpec.setTaskStartTime(System.currentTimeMillis());
         anomalyTaskSpec.setTaskInfo(taskInfoJson);
-        AnomalyJobSpec anomalyJobSpec = anomalyJobSpecDAO.findById(alertJobContext.getJobExecutionId());
-        anomalyTaskSpec.setJob(anomalyJobSpec);
+        anomalyTaskSpec.setJobId(alertJobContext.getJobExecutionId());
         long taskId = anomalyTasksSpecDAO.save(anomalyTaskSpec);
         taskIds.add(taskId);
         LOG.info("Created alert task {} with taskId {}", anomalyTaskSpec, taskId);
