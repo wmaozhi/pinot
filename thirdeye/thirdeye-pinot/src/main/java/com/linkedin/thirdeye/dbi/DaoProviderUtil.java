@@ -7,6 +7,16 @@ import com.google.inject.Provides;
 import com.linkedin.thirdeye.common.persistence.PersistenceConfig;
 import com.linkedin.thirdeye.common.persistence.PersistenceUtil;
 import com.linkedin.thirdeye.db.entity.AnomalyFeedback;
+import com.linkedin.thirdeye.db.entity.AnomalyFunctionRelation;
+import com.linkedin.thirdeye.db.entity.AnomalyFunctionSpec;
+import com.linkedin.thirdeye.db.entity.AnomalyJobSpec;
+import com.linkedin.thirdeye.db.entity.AnomalyMergedResult;
+import com.linkedin.thirdeye.db.entity.AnomalyResult;
+import com.linkedin.thirdeye.db.entity.AnomalyTaskSpec;
+import com.linkedin.thirdeye.db.entity.EmailConfiguration;
+import com.linkedin.thirdeye.db.entity.WebappConfig;
+import com.linkedin.thirdeye.dbi.entity.MergeConfig;
+
 import io.dropwizard.configuration.ConfigurationFactory;
 import io.dropwizard.jackson.Jackson;
 import java.io.File;
@@ -26,7 +36,7 @@ public abstract class DaoProviderUtil {
     dataSource.setMaxActive(100);
     dataSource.setUsername("sa");
     dataSource.setPassword("sa");
-    dataSource.setUrl("jdbc:h2:mem:test");
+    dataSource.setUrl("jdbc:h2:~/test");
     dataSource.setDriverClassName("org.h2.Driver");
     DataSourceModule dataSourceModule = new DataSourceModule(dataSource);
     injector = Guice.createInjector(dataSourceModule);
@@ -59,8 +69,18 @@ public abstract class DaoProviderUtil {
       try (Connection conn = dataSource.getConnection()) {
         builder = new SqlQueryBuilder();
         builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
+        builder.register(conn, AnomalyFunctionSpec.class, "ANOMALY_FUNCTIONS");
+        builder.register(conn, AnomalyFunctionRelation.class, "ANOMALY_FUNCTION_RELATIONS");
+        builder.register(conn, AnomalyJobSpec.class, "ANOMALY_JOBS");
+        builder.register(conn, AnomalyMergedResult.class, "ANOMALY_MERGED_RESULTS");
+        builder.register(conn, AnomalyResult.class, "ANOMALY_RESULTS");
+        builder.register(conn, AnomalyTaskSpec.class, "ANOMALY_TASKS");
+        builder.register(conn, EmailConfiguration.class, "EMAIL_CONFIGURATIONS");
+        builder.register(conn, MergeConfig.class, "MERGE_CONFIG");
+        builder.register(conn, WebappConfig.class, "WEBAPP_CONFIGS");
+        
       } catch (Exception e) {
-        e.printStackTrace();
+        throw new RuntimeException(e);
       }
     }
 

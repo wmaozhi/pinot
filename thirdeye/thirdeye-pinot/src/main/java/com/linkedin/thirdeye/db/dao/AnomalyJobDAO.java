@@ -38,10 +38,6 @@ public class AnomalyJobDAO extends AbstractBaseDAO<AnomalyJobSpec> {
     Predicate statusPredicate = Predicate.EQ("status", status);
     Predicate andPredicate = Predicate.AND(expireTimestampPredicate, statusPredicate);
     List<AnomalyJobSpec> anomalyJobSpecs = findByParams(andPredicate);
-    //    List<AnomalyJobSpec> anomalyJobSpecs =
-    //        getEntityManager().createQuery(FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE, entityClass)
-    //            .setParameter("expireTimestamp", expireTimestamp).setParameter("status", status)
-    //            .getResultList();
     for (AnomalyJobSpec anomalyJobSpec : anomalyJobSpecs) {
       deleteById(anomalyJobSpec.getId());
     }

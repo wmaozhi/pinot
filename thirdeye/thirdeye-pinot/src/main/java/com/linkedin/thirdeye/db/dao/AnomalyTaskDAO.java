@@ -1,84 +1,79 @@
 package com.linkedin.thirdeye.db.dao;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.persist.Transactional;
-import com.linkedin.thirdeye.anomaly.task.TaskConstants.TaskStatus;
-import com.linkedin.thirdeye.db.entity.AnomalyTaskSpec;
-
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.joda.time.DateTime;
 
-public class AnomalyTaskDAO extends AbstractJpaDAO<AnomalyTaskSpec> {
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+import com.linkedin.thirdeye.anomaly.task.TaskConstants.TaskStatus;
+import com.linkedin.thirdeye.db.entity.AnomalyTaskSpec;
 
-  private static final String FIND_BY_JOB_ID_STATUS_NOT_IN = "SELECT at FROM AnomalyTaskSpec at "
-      + "WHERE at.job.id = :jobId "
-      + "AND at.status != :status";
+public class AnomalyTaskDAO extends AbstractBaseDAO<AnomalyTaskSpec> {
 
-  private static final String FIND_BY_STATUS_ORDER_BY_CREATE_TIME_ASC = "SELECT at FROM AnomalyTaskSpec at "
-      + "WHERE at.status = :status "
-      + "order by at.taskStartTime asc";
+  private static final String FIND_BY_JOB_ID_STATUS_NOT_IN = "SELECT * FROM AnomalyTaskSpec"
+      + "WHERE jobId = :jobId " + "AND status != :status";
 
-  private static final String FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE = "SELECT at FROM AnomalyTaskSpec at "
-      + "WHERE at.status = :status AND at.lastModified < :expireTimestamp";
+  private static final String FIND_BY_STATUS_ORDER_BY_CREATE_TIME_ASC =
+      "SELECT * FROM AnomalyTaskSpec " + "WHERE status = :status "
+          + "order by taskStartTime asc";
+
+  private static final String FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE =
+      "SELECT FROM AnomalyTaskSpec "
+          + "WHERE status = :status AND lastModified < :expireTimestamp";
 
   public AnomalyTaskDAO() {
     super(AnomalyTaskSpec.class);
   }
 
-  @Transactional
   public List<AnomalyTaskSpec> findByJobIdStatusNotIn(Long jobId, TaskStatus status) {
-    return getEntityManager().createQuery(FIND_BY_JOB_ID_STATUS_NOT_IN, entityClass)
-        .setParameter("jobId", jobId)
-        .setParameter("status", status).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("jobId", jobId);
+    parameterMap.put("status", status);
+    return executeParameterizedSQL(FIND_BY_JOB_ID_STATUS_NOT_IN, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyTaskSpec> findByStatusOrderByCreateTimeAscending(TaskStatus status) {
-    return getEntityManager().createQuery(FIND_BY_STATUS_ORDER_BY_CREATE_TIME_ASC, entityClass)
-            .setParameter("status", status)
-            .getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("status", status);
+    return executeParameterizedSQL(FIND_BY_STATUS_ORDER_BY_CREATE_TIME_ASC, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyTaskSpec> findByIdAndStatus(Long id, TaskStatus status) {
     return super.findByParams(ImmutableMap.of("status", status, "id", id));
   }
 
-  @Transactional
-  public boolean updateStatusAndWorkerId(Long workerId, Long id, TaskStatus oldStatus, TaskStatus newStatus) {
-    List<AnomalyTaskSpec> anomalyTaskSpecs = findByIdAndStatus(id, oldStatus);
-    if (anomalyTaskSpecs.size() == 1) {
-      AnomalyTaskSpec anomalyTaskSpec = anomalyTaskSpecs.get(0);
-      anomalyTaskSpec.setStatus(newStatus);
-      anomalyTaskSpec.setWorkerId(workerId);
-      save(anomalyTaskSpec);
-      return true;
-    }
-    return false;
+  public boolean updateStatusAndWorkerId(Long workerId, Long id, TaskStatus oldStatus,
+      TaskStatus newStatus) {
+    AnomalyTaskSpec anomalyTaskSpec = new AnomalyTaskSpec();
+    anomalyTaskSpec.setId(id);
+    anomalyTaskSpec.setStatus(newStatus);
+    anomalyTaskSpec.setWorkerId(workerId);
+    Set<String> fieldsToUpdate = Sets.newHashSet("status", "workerId");
+    return (update(anomalyTaskSpec, fieldsToUpdate) == 1);
   }
 
-  @Transactional
-  public void updateStatusAndTaskEndTime(Long id, TaskStatus oldStatus, TaskStatus newStatus, Long taskEndTime) {
-    List<AnomalyTaskSpec> anomalyTaskSpecs = findByIdAndStatus(id, oldStatus);
-    if (anomalyTaskSpecs.size() == 1) {
-      AnomalyTaskSpec anomalyTaskSpec = anomalyTaskSpecs.get(0);
-      anomalyTaskSpec.setStatus(newStatus);
-      anomalyTaskSpec.setTaskEndTime(taskEndTime);
-      save(anomalyTaskSpec);
-    }
+  public boolean updateStatusAndTaskEndTime(Long id, TaskStatus oldStatus, TaskStatus newStatus,
+      Long taskEndTime) {
+    AnomalyTaskSpec anomalyTaskSpec = new AnomalyTaskSpec();
+    anomalyTaskSpec.setId(id);
+    anomalyTaskSpec.setStatus(newStatus);
+    anomalyTaskSpec.setTaskEndTime(taskEndTime);
+    Set<String> fieldsToUpdate = Sets.newHashSet("status", "taskEndTime");
+    return (update(anomalyTaskSpec, fieldsToUpdate) == 1);
   }
 
-  @Transactional
   public int deleteRecordsOlderThanDaysWithStatus(int days, TaskStatus status) {
     DateTime expireDate = new DateTime().minusDays(days);
     Timestamp expireTimestamp = new Timestamp(expireDate.getMillis());
-    List<AnomalyTaskSpec> anomalyTaskSpecs = getEntityManager()
-        .createQuery(FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE, entityClass)
-        .setParameter("expireTimestamp", expireTimestamp)
-        .setParameter("status", status).getResultList();
-
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("expireTimestamp", expireTimestamp);
+    parameterMap.put("status", status);
+    List<AnomalyTaskSpec> anomalyTaskSpecs = executeParameterizedSQL(FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE, parameterMap);
     for (AnomalyTaskSpec anomalyTaskSpec : anomalyTaskSpecs) {
       deleteById(anomalyTaskSpec.getId());
     }

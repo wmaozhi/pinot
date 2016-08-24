@@ -1,17 +1,15 @@
 package com.linkedin.thirdeye.db.dao;
 
-import com.google.inject.persist.Transactional;
 import com.linkedin.thirdeye.db.entity.AnomalyMergedResult;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.persistence.NoResultException;
 
-public class AnomalyMergedResultDAO extends AbstractJpaDAO<AnomalyMergedResult> {
+public class AnomalyMergedResultDAO extends AbstractBaseDAO<AnomalyMergedResult> {
 
   private static final String FIND_BY_COLLECTION_METRIC_DIMENSIONS_ORDER_BY_END_TIME =
       "from AnomalyMergedResult amr where amr.collection=:collection and amr.metric=:metric "
-          + "and amr.dimensions=:dimensions order by amr.endTime desc";
+          + "and amr.dimensions=:dimensions order by amr.endTime desc limit 1";
 
   private static final String FIND_BY_FUNCTION_AND_DIMENSIONS =
       "from AnomalyMergedResult amr where amr.function.id=:functionId "
@@ -35,20 +33,21 @@ public class AnomalyMergedResultDAO extends AbstractJpaDAO<AnomalyMergedResult> 
     super(AnomalyMergedResult.class);
   }
 
-  @Transactional
   public List<AnomalyMergedResult> getAllByTime(long startTime, long endTime) {
-    return getEntityManager().createQuery(FIND_BY_TIME, entityClass)
-        .setParameter("startTime", startTime).setParameter("endTime", endTime).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("startTime", startTime);
+    parameterMap.put("endTime", endTime);
+    return executeParameterizedSQL(FIND_BY_TIME, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyMergedResult> getAllByTimeEmailId(long startTime, long endTime, long emailId) {
-    return getEntityManager().createQuery(FIND_BY_TIME_EMAIL, entityClass)
-        .setParameter("emailId", emailId).setParameter("startTime", startTime)
-        .setParameter("endTime", endTime).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("emailId", emailId);
+    parameterMap.put("startTime", startTime);
+    parameterMap.put("endTime", endTime);
+    return executeParameterizedSQL(FIND_BY_TIME_EMAIL, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyMergedResult> findByCollectionMetricDimensions(String collection,
       String metric, String dimensions) {
     Map<String, Object> params = new HashMap<>();
@@ -58,37 +57,41 @@ public class AnomalyMergedResultDAO extends AbstractJpaDAO<AnomalyMergedResult> 
     return super.findByParams(params);
   }
 
-  @Transactional
-  public AnomalyMergedResult findLatestByCollectionMetricDimensions(
-      String collection, String metric, String dimensions) {
-    try {
-      return getEntityManager()
-          .createQuery(FIND_BY_COLLECTION_METRIC_DIMENSIONS_ORDER_BY_END_TIME, entityClass)
-          .setParameter("collection", collection).setParameter("metric", metric)
-          .setParameter("dimensions", dimensions).setMaxResults(1).getSingleResult();
-    } catch (NoResultException e) {
-      return null;
+  public AnomalyMergedResult findLatestByCollectionMetricDimensions(String collection,
+      String metric, String dimensions) {
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("metric", metric);
+    parameterMap.put("dimensions", dimensions);
+    List<AnomalyMergedResult> results = executeParameterizedSQL(
+        FIND_BY_COLLECTION_METRIC_DIMENSIONS_ORDER_BY_END_TIME, parameterMap);
+    if (results.size() > 0) {
+      return results.get(0);
     }
+    return null;
   }
 
-  @Transactional
   public AnomalyMergedResult findLatestByFunctionIdDimensions(Long functionId, String dimensions) {
-    try {
-      return getEntityManager().createQuery(FIND_BY_FUNCTION_AND_DIMENSIONS, entityClass)
-          .setParameter("functionId", functionId).setParameter("dimensions", dimensions)
-          .setMaxResults(1).getSingleResult();
-    } catch (NoResultException e) {
-      return null;
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("functionId", functionId);
+    parameterMap.put("dimensions", dimensions);
+    List<AnomalyMergedResult> results =
+        executeParameterizedSQL(FIND_BY_FUNCTION_AND_DIMENSIONS, parameterMap);
+    if (results.size() > 0) {
+      return results.get(0);
     }
+    return null;
   }
 
-  @Transactional
   public AnomalyMergedResult findLatestByFunctionIdOnly(Long functionId) {
-    try {
-      return getEntityManager().createQuery(FIND_BY_FUNCTION_AND_NULL_DIMENSION, entityClass)
-          .setParameter("functionId", functionId).setMaxResults(1).getSingleResult();
-    } catch (NoResultException e) {
-      return null;
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("functionId", functionId);
+    List<AnomalyMergedResult> results =
+        executeParameterizedSQL(FIND_BY_FUNCTION_AND_NULL_DIMENSION, parameterMap);
+    if (results.size() > 0) {
+      return results.get(0);
     }
+    return null;
+
   }
 }

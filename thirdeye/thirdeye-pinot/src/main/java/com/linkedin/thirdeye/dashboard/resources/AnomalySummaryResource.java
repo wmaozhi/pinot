@@ -107,16 +107,16 @@ public class AnomalySummaryResource {
       mergeConfig = new AnomalyMergeConfig();
     }
     switch (mergeConfig.getMergeStrategy()) {
-    case COLLECTION_METRIC_DIMENSIONS:
-      return resultDAO.getCountByCollectionMetricDimension(mergeConfig.getStartTime(), mergeConfig.getEndTime(), true);
-    case FUNCTION_DIMENSIONS:
-      return resultDAO.getCountByFunctionDimensions(mergeConfig.getStartTime(), mergeConfig.getEndTime());
-    case FUNCTION:
-      return resultDAO.getCountByFunction(mergeConfig.getStartTime(), mergeConfig.getEndTime());
-    case COLLECTION_METRIC:
-      return resultDAO.getCountByCollectionMetric(mergeConfig.getStartTime(), mergeConfig.getEndTime());
-    case COLLECTION:
-      return resultDAO.getCountByCollection(mergeConfig.getStartTime(), mergeConfig.getEndTime());
+//    case COLLECTION_METRIC_DIMENSIONS:
+//      return resultDAO.getCountByCollectionMetricDimension(mergeConfig.getStartTime(), mergeConfig.getEndTime(), true);
+//    case FUNCTION_DIMENSIONS:
+//      return resultDAO.getCountByFunctionDimensions(mergeConfig.getStartTime(), mergeConfig.getEndTime());
+//    case FUNCTION:
+//      return resultDAO.getCountByFunction(mergeConfig.getStartTime(), mergeConfig.getEndTime());
+//    case COLLECTION_METRIC:
+//      return resultDAO.getCountByCollectionMetric(mergeConfig.getStartTime(), mergeConfig.getEndTime());
+//    case COLLECTION:
+//      return resultDAO.getCountByCollection(mergeConfig.getStartTime(), mergeConfig.getEndTime());
     default:
       throw new IllegalArgumentException("Unknown merge strategy : " + mergeConfig.getMergeStrategy());
     }

@@ -28,8 +28,8 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
   DataSource dataSource;
 
   /**
-   * Use at your own risk!!!
-   * Ensure to close the connection after using it or it can cause a leak.
+   * Use at your own risk!!! Ensure to close the connection after using it or it can cause a leak.
+   * 
    * @return
    * @throws SQLException
    */
@@ -43,129 +43,153 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
   }
 
   public Long save(E entity) {
-    try (Connection connection = getConnection()) {
-      PreparedStatement insertStatement = sqlQueryBuilder.createInsertStatement(connection, entity);
-      int affectedRows = insertStatement.executeUpdate();
-      System.out.println("affectedRows:" + affectedRows);
-
-      ResultSet generatedKeys = insertStatement.getGeneratedKeys();
-      if (generatedKeys.next()) {
-        System.out.println("Generated id:" + generatedKeys.getInt(1));
-        entity.setId(generatedKeys.getLong(1));
-      }
-      return entity.getId();
-    } catch (Exception e) {
-      e.printStackTrace();
+    if(entity.getId() != null){
+      //either throw exception or invoke update
+      throw new RuntimeException("id must be null when inserting new record. If you are trying to update call update");
     }
-    return null;
+    return runTask(new Task<Long>() {
+      @Override
+      public Long handle(Connection connection) throws Exception {
+        PreparedStatement insertStatement =
+            sqlQueryBuilder.createInsertStatement(connection, entity);
+        int affectedRows = insertStatement.executeUpdate();
+        if (affectedRows == 1) {
+          ResultSet generatedKeys = insertStatement.getGeneratedKeys();
+          if (generatedKeys.next()) {
+            entity.setId(generatedKeys.getLong(1));
+          }
+          return entity.getId();
+        }
+        return null;
+      }
+    }, null);
   }
 
   @SuppressWarnings("unchecked")
   public E findById(Long id) {
-    try (Connection connection = getConnection()) {
-      PreparedStatement selectStatement =
-          sqlQueryBuilder.createFindByIdStatement(connection, entityClass, id);
-      ResultSet resultSet = selectStatement.executeQuery();
-      return (E) genericResultSetMapper.mapSingle(resultSet, entityClass);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+    return runTask(new Task<E>() {
+      @Override
+      public E handle(Connection connection) throws Exception {
+        PreparedStatement selectStatement =
+            sqlQueryBuilder.createFindByIdStatement(connection, entityClass, id);
+        ResultSet resultSet = selectStatement.executeQuery();
+        return (E) genericResultSetMapper.mapSingle(resultSet, entityClass);
+      }
+    }, null);
   }
 
   @SuppressWarnings("unchecked")
   public List<E> findAll() {
-    try {
-      PreparedStatement selectStatement =
-          sqlQueryBuilder.createFindAllStatement(getConnection(), entityClass);
-      ResultSet resultSet = selectStatement.executeQuery();
-      return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
-    return null;
+    return runTask(new Task<List<E>>() {
+      @Override
+      public List<E> handle(Connection connection) throws Exception {
+        PreparedStatement selectStatement =
+            sqlQueryBuilder.createFindAllStatement(getConnection(), entityClass);
+        ResultSet resultSet = selectStatement.executeQuery();
+        return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+      }
+    }, null);
   }
 
   public int deleteById(Long id) {
-    try (Connection connection = getConnection()) {
-      Map<String, Object> filters = new HashMap<>();
-      filters.put("id", id);
-      PreparedStatement deleteStatement =
-          sqlQueryBuilder.createDeleteByIdStatement(connection, entityClass, filters );
-      return deleteStatement.executeUpdate();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return 0;
+    return runTask(new Task<Integer>() {
+      @Override
+      public Integer handle(Connection connection) throws Exception {
+        Map<String, Object> filters = new HashMap<>();
+        filters.put("id", id);
+        PreparedStatement deleteStatement =
+            sqlQueryBuilder.createDeleteByIdStatement(connection, entityClass, filters);
+        return deleteStatement.executeUpdate();
+      }
+    }, 0);
   }
 
   public int deleteByParams(Map<String, Object> filters) {
-    try {
-      PreparedStatement deleteStatement =
-          sqlQueryBuilder.createDeleteByIdStatement(getConnection(), entityClass, filters);
-      return deleteStatement.executeUpdate();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return 0;
+    return runTask(new Task<Integer>() {
+      @Override
+      public Integer handle(Connection connection) throws Exception {
+        PreparedStatement deleteStatement =
+            sqlQueryBuilder.createDeleteByIdStatement(connection, entityClass, filters);
+        return deleteStatement.executeUpdate();
+      }
+    }, 0);
   }
-  
-  public List<E> executeParameterizedSQL(String parameterizedSQL, Map<String,Object> parameterMap){
-    PreparedStatement selectStatement = sqlQueryBuilder.createStatementFromSQL(parameterizedSQL, parameterMap);
-    return null;
+
+  @SuppressWarnings("unchecked")
+  public List<E> executeParameterizedSQL(String parameterizedSQL,
+      Map<String, Object> parameterMap) {
+    return runTask(new Task<List<E>>() {
+      @Override
+      public List<E> handle(Connection connection) throws Exception {
+        PreparedStatement selectStatement =
+            sqlQueryBuilder.createStatementFromSQL(connection, parameterizedSQL, parameterMap, entityClass);
+        ResultSet resultSet = selectStatement.executeQuery();
+        return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+      }
+    }, null);
   }
-  
-  
+
+
   @SuppressWarnings("unchecked")
   public List<E> findByParams(Map<String, Object> filters) {
-    try (Connection connection = getConnection()) {
-      PreparedStatement selectStatement =
-          sqlQueryBuilder.createFindByParamsStatement(connection, entityClass, filters);
-      ResultSet resultSet = selectStatement.executeQuery();
-      return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+    return runTask(new Task<List<E>>() {
+      @Override
+      public List<E> handle(Connection connection) throws Exception {
+        PreparedStatement selectStatement =
+            sqlQueryBuilder.createFindByParamsStatement(connection, entityClass, filters);
+        ResultSet resultSet = selectStatement.executeQuery();
+        return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+      }
+    }, null);
   }
 
   @SuppressWarnings("unchecked")
   public List<E> findByParams(Predicate predicate) {
-    try {
-      PreparedStatement selectStatement =
-          sqlQueryBuilder.createFindByParamsStatement(getConnection(), entityClass, predicate);
-      ResultSet resultSet = selectStatement.executeQuery();
-      return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+    return runTask(new Task<List<E>>() {
+      @Override
+      public List<E> handle(Connection connection) throws Exception {
+        PreparedStatement selectStatement =
+            sqlQueryBuilder.createFindByParamsStatement(connection, entityClass, predicate);
+        ResultSet resultSet = selectStatement.executeQuery();
+        return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
+      }
+    }, null);
   }
 
   public int update(E entity) {
-    try (Connection connection = getConnection()) {
-      PreparedStatement updateStatement =
-          sqlQueryBuilder.createUpdateStatement(connection, entity, null);
-      return updateStatement.executeUpdate();
-    } catch (Exception exception) {
-      exception.printStackTrace();
-    }
-    return 0;
+    return runTask(new Task<Integer>() {
+      @Override
+      public Integer handle(Connection connection) throws Exception {
+        PreparedStatement updateStatement;
+        updateStatement = sqlQueryBuilder.createUpdateStatement(connection, entity, null);
+        return updateStatement.executeUpdate();
+      }
+    }, 0);
   }
 
-  public int update(E entity, Set<String> fieldsToUpdate) {
+  public Integer update(E entity, Set<String> fieldsToUpdate) {
+    return runTask(new Task<Integer>() {
+      @Override
+      public Integer handle(Connection connection) throws Exception {
+        PreparedStatement updateStatement;
+        updateStatement = sqlQueryBuilder.createUpdateStatement(connection, entity, fieldsToUpdate);
+        return updateStatement.executeUpdate();
+      }
+    }, 0);
+  }
+
+  interface Task<T> {
+    T handle(Connection connection) throws Exception;
+  }
+
+  <T> T runTask(Task<T> task, T defaultReturnValue) {
     try (Connection connection = getConnection()) {
-      PreparedStatement updateStatement =
-          sqlQueryBuilder.createUpdateStatement(connection, entity, fieldsToUpdate);
-      return updateStatement.executeUpdate();
-    } catch (Exception exception) {
-      exception.printStackTrace();
+      return task.handle(connection);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return defaultReturnValue;
     }
-    return 0;
   }
 }
-
-
 
 

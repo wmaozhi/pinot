@@ -2,6 +2,7 @@ package com.linkedin.thirdeye.dbi.entity;
 
 import java.util.concurrent.TimeUnit;
 
+
 public class AnomalyFunction extends AbstractEntity {
   private String collection;
 

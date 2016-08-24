@@ -1,8 +1,9 @@
 package com.linkedin.thirdeye.dbi.entity;
 
 import com.linkedin.thirdeye.anomaly.merge.AnomalyMergeStrategy;
+import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 
-public class MergeConfig extends AbstractEntity {
+public class MergeConfig extends AbstractBaseEntity {
   private String mergeStrategy = AnomalyMergeStrategy.FUNCTION.name();
   private long sequentialAllowedGap = 30_000; // 30 seconds
   private long mergeDuration = 12 * 60 * 60 * 1000; // 12 hours
@@ -20,7 +21,7 @@ public class MergeConfig extends AbstractEntity {
   }
 
   public MergeConfig(Long id, String mergeStrategy, long sequentialAllowedGap, long mergeDuration, Long functionId) {
-    super(id);
+    setId(id);
     this.mergeDuration = mergeDuration;
     this.mergeStrategy = mergeStrategy;
     this.sequentialAllowedGap = sequentialAllowedGap;

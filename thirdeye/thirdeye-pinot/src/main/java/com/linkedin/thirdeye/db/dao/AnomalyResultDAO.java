@@ -1,17 +1,16 @@
 package com.linkedin.thirdeye.db.dao;
 
-import com.google.inject.persist.Transactional;
-import com.linkedin.thirdeye.api.dto.GroupByKey;
-import com.linkedin.thirdeye.api.dto.GroupByRow;
 import com.linkedin.thirdeye.db.entity.AnomalyResult;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import javax.persistence.TypedQuery;
+import java.util.Map;
+
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-public class AnomalyResultDAO extends AbstractJpaDAO<AnomalyResult> {
+public class AnomalyResultDAO extends AbstractBaseDAO<AnomalyResult> {
 
   private static final String FIND_BY_COLLECTION_TIME =
       "SELECT r FROM AnomalyResult r WHERE r.function.collection = :collection "
@@ -78,6 +77,15 @@ public class AnomalyResultDAO extends AbstractJpaDAO<AnomalyResult> {
       + "group by r.function.id, r.function.functionName, r.function.collection, r.function.metric "
       + "order by r.function.collection, num desc";
 
+  private static final String COUNT_GROUP_BY_FUNCTION_DIMENSIONS =
+      "select count(r.id) as num, r.function.id,"
+          + "r.function.functionName, r.function.collection, r.function.metric, r.dimensions from AnomalyResult r "
+          + "where r.function.isActive=true "
+          + "and ((r.startTimeUtc >= :startTimeUtc and r.startTimeUtc <= :endTimeUtc) "
+          + "or (r.endTimeUtc >= :startTimeUtc and r.endTimeUtc <= :endTimeUtc))"
+          + "group by r.function.id, r.function.functionName, r.function.collection, r.function.metric, r.dimensions "
+          + "order by r.function.collection, num desc";
+
   private static final String COUNT_GROUP_BY_COLLECTION_METRIC = "select count(r.id) as num, "
       + "r.function.collection, r.function.metric from AnomalyResult r "
       + "where r.function.isActive=true "
@@ -86,12 +94,11 @@ public class AnomalyResultDAO extends AbstractJpaDAO<AnomalyResult> {
       + "group by r.function.collection, r.function.metric  "
       + "order by r.function.collection, num desc";
 
-  private static final String COUNT_GROUP_BY_COLLECTION =
-      "select count(r.id) as num, " + "r.function.collection from AnomalyResult r "
-          + "where r.function.isActive=true "
-          + "and ((r.startTimeUtc >= :startTimeUtc and r.startTimeUtc <= :endTimeUtc) "
-          + "or (r.endTimeUtc >= :startTimeUtc and r.endTimeUtc <= :endTimeUtc))"
-          + "group by r.function.collection order by r.function.collection, num desc";
+  private static final String COUNT_GROUP_BY_COLLECTION = "select count(r.id) as num, "
+      + "r.function.collection from AnomalyResult r " + "where r.function.isActive=true "
+      + "and ((r.startTimeUtc >= :startTimeUtc and r.startTimeUtc <= :endTimeUtc) "
+      + "or (r.endTimeUtc >= :startTimeUtc and r.endTimeUtc <= :endTimeUtc))"
+      + "group by r.function.collection order by r.function.collection, num desc";
 
   private static final String FIND_UNMERGED_BY_COLLECTION_METRIC_DIMENSION =
       "from AnomalyResult r where r.function.collection = :collection and r.function.metric = :metric "
@@ -105,193 +112,97 @@ public class AnomalyResultDAO extends AbstractJpaDAO<AnomalyResult> {
     super(AnomalyResult.class);
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByCollectionAndTime(String collection, DateTime startTime,
       DateTime endTime) {
-    return getEntityManager().createQuery(FIND_BY_COLLECTION_TIME, entityClass)
-        .setParameter("collection", collection)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .getResultList();
+    //    getEntityManager().createQuery(FIND_BY_COLLECTION_TIME, entityClass);
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    return super.executeParameterizedSQL(FIND_BY_COLLECTION_TIME, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByCollectionTimeAndMetric(String collection, String metric,
       DateTime startTime, DateTime endTime) {
-    return getEntityManager().createQuery(FIND_BY_COLLECTION_TIME_METRIC, entityClass)
-        .setParameter("collection", collection)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("metric", metric).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("metric", metric);
+    return super.executeParameterizedSQL(FIND_BY_COLLECTION_TIME_METRIC, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByCollectionTimeMetricAndDimensions(String collection,
       String metric, DateTime startTime, DateTime endTime, String[] dimensions) {
     List<String> dimList = Arrays.asList(dimensions);
-    return getEntityManager().createQuery(FIND_BY_COLLECTION_TIME_METRIC_DIMENSION, entityClass)
-        .setParameter("collection", collection)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("metric", metric).setParameter("dimensions", dimList).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("metric", metric);
+    parameterMap.put("dimensions", dimList);
+    return super.executeParameterizedSQL(FIND_BY_COLLECTION_TIME_METRIC_DIMENSION, parameterMap);
+
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByTimeAndFunctionId(long startTime, long endTime,
       long functionId) {
-    return getEntityManager().createQuery(FIND_BY_TIME_AND_FUNCTION_ID, entityClass)
-        .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime)
-        .setParameter("functionId", functionId).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("startTimeUtc", startTime);
+    parameterMap.put("endTimeUtc", endTime);
+    parameterMap.put("functionId", functionId);
+    return super.executeParameterizedSQL(FIND_BY_TIME_AND_FUNCTION_ID, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByCollectionTimeAndFilters(String collection,
       DateTime startTime, DateTime endTime, String filters) {
-    return getEntityManager().createQuery(FIND_BY_COLLECTION_TIME_FILTERS, entityClass)
-        .setParameter("collection", collection)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("filters", filters).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("filters", filters);
+    return super.executeParameterizedSQL(FIND_BY_COLLECTION_TIME_FILTERS, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findAllByCollectionTimeMetricAndFilters(String collection,
       String metric, DateTime startTime, DateTime endTime, String filters) {
-    return getEntityManager().createQuery(FIND_BY_COLLECTION_TIME_METRIC_FILTERS, entityClass)
-        .setParameter("collection", collection)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("metric", metric).setParameter("filters", filters).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("collection", collection);
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("metric", metric);
+    parameterMap.put("filters", filters);
+    return super.executeParameterizedSQL(FIND_BY_COLLECTION_TIME_METRIC_FILTERS, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findValidAllByTimeAndEmailId(DateTime startTime, DateTime endTime,
       long emailId) {
-    return getEntityManager().createQuery(FIND_VALID_BY_TIME_EMAIL_ID, entityClass)
-        .setParameter("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis())
-        .setParameter("emailId", emailId).setParameter("dataMissing", false).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("startTimeUtc", startTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("endTimeUtc", endTime.toDateTime(DateTimeZone.UTC).getMillis());
+    parameterMap.put("emailId", emailId);
+    parameterMap.put("dataMissing", false);
+    return super.executeParameterizedSQL(FIND_VALID_BY_TIME_EMAIL_ID, parameterMap);
   }
 
-  @Transactional
-  public List<GroupByRow<GroupByKey, Long>> getCountByCollectionMetricDimension(long startTime,
-      long endTime, boolean includeMerged) {
-    String query = COUNT_UNMERGED_BY_COLLECTION_METRIC_DIMENSION;
-    if (includeMerged) {
-      query = COUNT_GROUP_BY_COLLECTION_METRIC_DIMENSION;
-    }
-    List<GroupByRow<GroupByKey, Long>> groupByRecords = new ArrayList<>();
-    TypedQuery<Object[]> q = getEntityManager().createQuery(query, Object[].class)
-        .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime);
-    List<Object[]> results = q.getResultList();
-    for (int i = 0; i < results.size(); i++) {
-      Long count = (Long) results.get(i)[0];
-      GroupByKey groupByKey = new GroupByKey();
-      groupByKey.setCollection((String) results.get(i)[1]);
-      groupByKey.setMetric((String) results.get(i)[2]);
-      groupByKey.setDimensions((String) results.get(i)[3]);
-      GroupByRow<GroupByKey, Long> row = new GroupByRow<>();
-      row.setGroupBy(groupByKey);
-      row.setValue(count);
-      groupByRecords.add(row);
-    }
-    return groupByRecords;
-  }
 
-  @Transactional
-  public List<GroupByRow<GroupByKey, Long>> getCountByFunction(long startTime, long endTime) {
-    List<GroupByRow<GroupByKey, Long>> groupByRecords = new ArrayList<>();
-    TypedQuery<Object[]> q = getEntityManager().createQuery(COUNT_GROUP_BY_FUNCTION, Object[].class)
-        .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime);
-    List<Object[]> results = q.getResultList();
-    for (int i = 0; i < results.size(); i++) {
-      Long count = (Long) results.get(i)[0];
-      GroupByKey functionKey = new GroupByKey();
-      functionKey.setFunctionId((Long) results.get(i)[1]);
-      functionKey.setFunctionName((String) results.get(i)[2]);
-      functionKey.setCollection((String) results.get(i)[3]);
-      functionKey.setMetric((String) results.get(i)[4]);
-      GroupByRow<GroupByKey, Long> row = new GroupByRow<>();
-      row.setGroupBy(functionKey);
-      row.setValue(count);
-      groupByRecords.add(row);
-    }
-    return groupByRecords;
-  }
 
-  @Transactional
-  public List<GroupByRow<GroupByKey, Long>> getCountByFunctionDimensions(long startTime, long endTime) {
-    List<GroupByRow<GroupByKey, Long>> groupByRecords = new ArrayList<>();
-    TypedQuery<Object[]> q = getEntityManager().createQuery(COUNT_GROUP_BY_FUNCTION, Object[].class)
-        .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime);
-    List<Object[]> results = q.getResultList();
-    for (int i = 0; i < results.size(); i++) {
-      Long count = (Long) results.get(i)[0];
-      GroupByKey functionKey = new GroupByKey();
-      functionKey.setFunctionId((Long) results.get(i)[1]);
-      functionKey.setFunctionName((String) results.get(i)[2]);
-      functionKey.setCollection((String) results.get(i)[3]);
-      functionKey.setMetric((String) results.get(i)[4]);
-      functionKey.setMetric((String)results.get(i)[5]);
-      GroupByRow<GroupByKey, Long> row = new GroupByRow<>();
-      row.setGroupBy(functionKey);
-      row.setValue(count);
-      groupByRecords.add(row);
-    }
-    return groupByRecords;
-  }
-
-  @Transactional
-  public List<GroupByRow<GroupByKey, Long>> getCountByCollection(long startTime, long endTime) {
-    List<GroupByRow<GroupByKey, Long>> groupByRecords = new ArrayList<>();
-    TypedQuery<Object[]> q =
-        getEntityManager().createQuery(COUNT_GROUP_BY_COLLECTION, Object[].class)
-            .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime);
-    List<Object[]> results = q.getResultList();
-    for (int i = 0; i < results.size(); i++) {
-      Long count = (Long) results.get(i)[0];
-      GroupByKey groupByKey = new GroupByKey();
-      groupByKey.setCollection((String) results.get(i)[1]);
-      GroupByRow<GroupByKey, Long> row = new GroupByRow<>();
-      row.setGroupBy(groupByKey);
-      row.setValue(count);
-      groupByRecords.add(row);
-    }
-    return groupByRecords;
-  }
-
-  @Transactional
-  public List<GroupByRow<GroupByKey, Long>> getCountByCollectionMetric(long startTime,
-      long endTime) {
-    List<GroupByRow<GroupByKey, Long>> groupByRecords = new ArrayList<>();
-    TypedQuery<Object[]> q =
-        getEntityManager().createQuery(COUNT_GROUP_BY_COLLECTION_METRIC, Object[].class)
-            .setParameter("startTimeUtc", startTime).setParameter("endTimeUtc", endTime);
-    List<Object[]> results = q.getResultList();
-    for (int i = 0; i < results.size(); i++) {
-      Long count = (Long) results.get(i)[0];
-      GroupByKey groupByKey = new GroupByKey();
-      groupByKey.setCollection((String) results.get(i)[1]);
-      groupByKey.setMetric((String) results.get(i)[2]);
-      GroupByRow<GroupByKey, Long> row = new GroupByRow<>();
-      row.setGroupBy(groupByKey);
-      row.setValue(count);
-      groupByRecords.add(row);
-    }
-    return groupByRecords;
-  }
-
-  @Transactional
   public List<AnomalyResult> findUnmergedByFunctionId(Long functionId) {
-    return getEntityManager().createQuery(FIND_UNMERGED_BY_FUNCTION, entityClass)
-        .setParameter("functionId", functionId).setParameter("dataMissing", false).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("functionId", functionId);
+    parameterMap.put("dataMissing", false);
+    return super.executeParameterizedSQL(FIND_UNMERGED_BY_FUNCTION, parameterMap);
   }
 
-  @Transactional
   public List<AnomalyResult> findUnmergedByCollectionMetricAndDimensions(String collection,
       String metric, String dimensions) {
-    return getEntityManager().createQuery(FIND_UNMERGED_BY_COLLECTION_METRIC_DIMENSION, entityClass)
-        .setParameter("collection", collection).setParameter("metric", metric)
-        .setParameter("dimensions", dimensions).setParameter("dataMissing", false).getResultList();
+    Map<String, Object> parameterMap = new HashMap<>();
+
+    parameterMap.put("collection", collection);
+    parameterMap.put("metric", metric);
+    parameterMap.put("dimensions", dimensions);
+    parameterMap.put("dataMissing", false);
+    return super.executeParameterizedSQL(FIND_UNMERGED_BY_COLLECTION_METRIC_DIMENSION,
+        parameterMap);
   }
 }
