@@ -43,10 +43,9 @@ public abstract class DaoProviderUtil {
   }
 
   public static PersistenceConfig createConfiguration(File configFile) {
-    ConfigurationFactory<PersistenceConfig> factory =
-        new ConfigurationFactory<>(PersistenceConfig.class,
-            Validation.buildDefaultValidatorFactory().getValidator(), Jackson.newObjectMapper(),
-            "");
+    ConfigurationFactory<PersistenceConfig> factory = new ConfigurationFactory<>(
+        PersistenceConfig.class, Validation.buildDefaultValidatorFactory().getValidator(),
+        Jackson.newObjectMapper(), "");
     PersistenceConfig configuration;
     try {
       configuration = factory.build(configFile);
@@ -63,36 +62,49 @@ public abstract class DaoProviderUtil {
   static class DataSourceModule extends AbstractModule {
     SqlQueryBuilder builder;
     DataSource dataSource;
+    private GenericResultSetMapper genericResultSetMapper;
+    EntityMappingHolder entityMappingHolder;
 
     DataSourceModule(DataSource dataSource) {
       this.dataSource = dataSource;
+      entityMappingHolder = new EntityMappingHolder();
       try (Connection conn = dataSource.getConnection()) {
-        builder = new SqlQueryBuilder();
-        builder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
-        builder.register(conn, AnomalyFunctionSpec.class, "ANOMALY_FUNCTIONS");
-        builder.register(conn, AnomalyFunctionRelation.class, "ANOMALY_FUNCTION_RELATIONS");
-        builder.register(conn, AnomalyJobSpec.class, "ANOMALY_JOBS");
-        builder.register(conn, AnomalyMergedResult.class, "ANOMALY_MERGED_RESULTS");
-        builder.register(conn, AnomalyResult.class, "ANOMALY_RESULTS");
-        builder.register(conn, AnomalyTaskSpec.class, "ANOMALY_TASKS");
-        builder.register(conn, EmailConfiguration.class, "EMAIL_CONFIGURATIONS");
-        builder.register(conn, MergeConfig.class, "MERGE_CONFIG");
-        builder.register(conn, WebappConfig.class, "WEBAPP_CONFIGS");
-        
+        entityMappingHolder.register(conn, AnomalyFeedback.class, "ANOMALY_FEEDBACK");
+        entityMappingHolder.register(conn, AnomalyFunctionSpec.class, "ANOMALY_FUNCTIONS");
+        entityMappingHolder.register(conn, AnomalyFunctionRelation.class,
+            "ANOMALY_FUNCTION_RELATIONS");
+        entityMappingHolder.register(conn, AnomalyJobSpec.class, "ANOMALY_JOBS");
+        entityMappingHolder.register(conn, AnomalyMergedResult.class, "ANOMALY_MERGED_RESULTS");
+        entityMappingHolder.register(conn, AnomalyResult.class, "ANOMALY_RESULTS");
+        entityMappingHolder.register(conn, AnomalyTaskSpec.class, "ANOMALY_TASKS");
+        entityMappingHolder.register(conn, EmailConfiguration.class, "EMAIL_CONFIGURATIONS");
+        entityMappingHolder.register(conn, MergeConfig.class, "MERGE_CONFIG");
+        entityMappingHolder.register(conn, WebappConfig.class, "WEBAPP_CONFIGS");
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+      builder = new SqlQueryBuilder(entityMappingHolder);
+
+      genericResultSetMapper = new GenericResultSetMapper(entityMappingHolder);
     }
 
-    @Override protected void configure() {
-    }
+    @Override
+    protected void configure() {}
 
-    @Provides javax.sql.DataSource getDataSource() {
+    @Provides
+    javax.sql.DataSource getDataSource() {
       return dataSource;
     }
 
-    @Provides SqlQueryBuilder getBuilder() {
+    @Provides
+    SqlQueryBuilder getBuilder() {
       return builder;
     }
+
+    @Provides
+    GenericResultSetMapper getResultSetMapper() {
+      return genericResultSetMapper;
+    }
+
   }
 }

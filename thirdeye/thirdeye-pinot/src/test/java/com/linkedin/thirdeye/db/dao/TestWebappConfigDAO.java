@@ -28,6 +28,8 @@ public class TestWebappConfigDAO extends AbstractDbTestBase {
     webappConfigId = webappConfigDAO.save(webappConfig);
     Assert.assertNotNull(webappConfigId);
     Assert.assertEquals(webappConfigDAO.findAll().size(), 1);
+    WebappConfig readWebappConfig = webappConfigDAO.findById(webappConfigId);
+    System.out.println(readWebappConfig);
   }
 
   @Test(dependsOnMethods = {"testCreate"})

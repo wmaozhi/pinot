@@ -1,10 +1,12 @@
 package com.linkedin.thirdeye.dbi;
 
 import java.lang.reflect.Field;
+import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -17,17 +19,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Sets;
 import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 import com.mysql.jdbc.Statement;
 
 
 public class SqlQueryBuilder {
 
-  //Map<TableName,EntityName>
-  BiMap<String, String> tableToEntityNameMap = HashBiMap.create();
-  Map<String, LinkedHashMap<String, ColumnInfo>> columnInfoPerTable = new HashMap<>();
-  //DB NAME to ENTITY NAME mapping
-  Map<String, BiMap<String, String>> columnMappingPerTable = new HashMap<>();
+
   //insert sql per table
   Map<String, String> insertSqlMap = new HashMap<>();
   private static final String NAME_REGEX = "[a-z][_a-z0-9]*";
@@ -36,57 +35,13 @@ public class SqlQueryBuilder {
 
   private static final Pattern PARAM_PATTERN =
       Pattern.compile(PARAM_REGEX, Pattern.CASE_INSENSITIVE);
+  private static Set<String> AUTO_UPDATE_COLUMN_SET = Sets.newHashSet("id", "last_modified");
 
-  public void register(Connection connection, Class<? extends AbstractBaseEntity> entityClass,
-      String tableName) throws Exception {
-    DatabaseMetaData databaseMetaData = connection.getMetaData();
-    String catalog = null;
-    String schemaPattern = null;
-    String tableNamePattern = tableName;
-    String columnNamePattern = null;
-    ResultSet rs =
-        databaseMetaData.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
+  private EntityMappingHolder entityMappingHolder;;
 
-    tableToEntityNameMap.put(tableName, entityClass.getSimpleName());
-    columnMappingPerTable.put(tableName, HashBiMap.create());
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = new LinkedHashMap<>();
+  public SqlQueryBuilder(EntityMappingHolder entityMappingHolder) {
+    this.entityMappingHolder = entityMappingHolder;
 
-    while (rs.next()) {
-      String columnName = rs.getString(4);
-      ColumnInfo columnInfo = new ColumnInfo();
-      columnInfo.columnNameInDB = columnName;
-      columnInfo.sqlType = rs.getInt(5);
-      columnInfoMap.put(columnName, columnInfo);
-    }
-    List<Field> fields = new ArrayList<>();
-    getAllFields(fields, entityClass);
-    for (Field field : fields) {
-      field.setAccessible(true);
-      String entityColumn = field.getName();
-      for (String dbColumn : columnInfoMap.keySet()) {
-        boolean success = false;
-        if (dbColumn.toLowerCase().equals(entityColumn.toLowerCase())) {
-          success = true;
-        }
-        String dbColumnNormalized = dbColumn.replaceAll("_", "").toLowerCase();
-        String entityColumnNormalized = entityColumn.replaceAll("_", "").toLowerCase();
-        if (dbColumnNormalized.equals(entityColumnNormalized)) {
-          success = true;
-        }
-        if (success) {
-          columnInfoMap.get(dbColumn).columnNameInEntity = entityColumn;
-          columnInfoMap.get(dbColumn).field = field;
-          System.out.println("Mapped " + dbColumn + " to " + entityColumn);
-          columnMappingPerTable.get(tableName).put(dbColumn, entityColumn);
-        }
-      }
-    }
-    columnInfoPerTable.put(tableName, columnInfoMap);
-    //create insert sql for this table
-
-    String insertSql = generateInsertSql(tableName, columnInfoMap);
-    insertSqlMap.put(tableName, insertSql);
-    System.out.println(insertSql);
   }
 
   public static String generateInsertSql(String tableName,
@@ -99,7 +54,7 @@ public class SqlQueryBuilder {
     String delim = "";
     for (ColumnInfo columnInfo : columnInfoMap.values()) {
       String columnName = columnInfo.columnNameInDB;
-      if (!columnName.toLowerCase().equals("id")) {
+      if (!AUTO_UPDATE_COLUMN_SET.contains(columnName.toLowerCase())) {
         names.append(delim);
         names.append(columnName);
         values.append(delim);
@@ -117,24 +72,39 @@ public class SqlQueryBuilder {
 
   public PreparedStatement createInsertStatement(Connection conn, AbstractBaseEntity entity)
       throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entity.getClass().getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entity.getClass().getSimpleName());
     return createInsertStatement(conn, tableName, entity);
   }
 
   public PreparedStatement createInsertStatement(Connection conn, String tableName,
       AbstractBaseEntity entity) throws Exception {
+    if (!insertSqlMap.containsKey(tableName)) {
+      String insertSql =
+          generateInsertSql(tableName, entityMappingHolder.columnInfoPerTable.get(tableName));
+      insertSqlMap.put(tableName, insertSql);
+      System.out.println(insertSql);
+    }
 
     String sql = insertSqlMap.get(tableName);
     PreparedStatement preparedStatement =
         conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    LinkedHashMap<String, ColumnInfo> columnInfoMap =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
     int parameterIndex = 1;
     for (ColumnInfo columnInfo : columnInfoMap.values()) {
-      if (!columnInfo.columnNameInDB.toLowerCase().equals("id")) {
+      if (!AUTO_UPDATE_COLUMN_SET.contains(columnInfo.columnNameInDB.toLowerCase())) {
         Object val = columnInfo.field.get(entity);
         System.out.println("Setting value:" + val + " for " + columnInfo.columnNameInDB);
         if (val != null) {
-          preparedStatement.setObject(parameterIndex++, val.toString(), columnInfo.sqlType);
+          if (columnInfo.sqlType == Types.CLOB) {
+            Clob clob = conn.createClob();
+            clob.setString(1, val.toString());
+            preparedStatement.setClob(parameterIndex++, clob);
+          } else {
+            preparedStatement.setObject(parameterIndex++, val.toString(), columnInfo.sqlType);
+          }
+
         } else {
           preparedStatement.setNull(parameterIndex++, columnInfo.sqlType);
         }
@@ -143,17 +113,11 @@ public class SqlQueryBuilder {
     return preparedStatement;
   }
 
-  public static List<Field> getAllFields(List<Field> fields, Class<?> type) {
-    fields.addAll(Arrays.asList(type.getDeclaredFields()));
-    if (type.getSuperclass() != null) {
-      fields = getAllFields(fields, type.getSuperclass());
-    }
-    return fields;
-  }
 
   public PreparedStatement createFindByIdStatement(Connection connection,
       Class<? extends AbstractBaseEntity> entityClass, Long id) throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     String sql = "Select * from " + tableName + " where id=?";
     PreparedStatement prepareStatement = connection.prepareStatement(sql);
     prepareStatement.setLong(1, id);
@@ -163,40 +127,49 @@ public class SqlQueryBuilder {
   public PreparedStatement createFindByParamsStatement(Connection connection,
       Class<? extends AbstractBaseEntity> entityClass, Map<String, Object> filters)
           throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     BiMap<String, String> entityNameToDBNameMapping =
-        columnMappingPerTable.get(tableName).inverse();
+        entityMappingHolder.columnMappingPerTable.get(tableName).inverse();
     StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM " + tableName);
     StringBuilder whereClause = new StringBuilder(" WHERE ");
     LinkedHashMap<String, Object> parametersMap = new LinkedHashMap<>();
+    String delim = "";
     for (String columnName : filters.keySet()) {
       String dbFieldName = entityNameToDBNameMapping.get(columnName);
-      whereClause.append(dbFieldName).append("=").append("?");
+      whereClause.append(delim).append(dbFieldName).append("=").append("?");
       parametersMap.put(dbFieldName, filters.get(columnName));
+      delim = " AND ";
     }
     sqlBuilder.append(whereClause.toString());
+    System.out.println("FIND BY SQL:" + sqlBuilder.toString());
     PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
     int parameterIndex = 1;
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    LinkedHashMap<String, ColumnInfo> columnInfoMap =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
     for (Entry<String, Object> paramEntry : parametersMap.entrySet()) {
       String dbFieldName = paramEntry.getKey();
       ColumnInfo info = columnInfoMap.get(dbFieldName);
-      prepareStatement.setObject(parameterIndex++, paramEntry.getValue(), info.sqlType);
+      System.out.println(
+          "Setting parameter:" + parameterIndex + " to " + paramEntry.getValue().toString());
+      prepareStatement.setObject(parameterIndex++, paramEntry.getValue().toString(), info.sqlType);
     }
     return prepareStatement;
   }
 
   public PreparedStatement createUpdateStatement(Connection connection, AbstractBaseEntity entity,
       Set<String> fieldsToUpdate) throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entity.getClass().getSimpleName());
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entity.getClass().getSimpleName());
+    LinkedHashMap<String, ColumnInfo> columnInfoMap =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
 
     StringBuilder sqlBuilder = new StringBuilder("UPDATE " + tableName + " SET ");
     String delim = "";
     LinkedHashMap<String, Object> parameterMap = new LinkedHashMap<>();
     for (ColumnInfo columnInfo : columnInfoMap.values()) {
       String columnNameInDB = columnInfo.columnNameInDB;
-      if (!columnNameInDB.toLowerCase().equals("id")
+      if (!AUTO_UPDATE_COLUMN_SET.contains(columnNameInDB)
           && (fieldsToUpdate == null || fieldsToUpdate.contains(columnInfo.columnNameInEntity))) {
         Object val = columnInfo.field.get(entity);
         if (val != null) {
@@ -213,6 +186,10 @@ public class SqlQueryBuilder {
         }
       }
     }
+    //ADD WHERE CLAUSE TO CHECK FOR ENTITY ID
+    sqlBuilder.append(" WHERE id=?");
+    parameterMap.put("id", entity.getId());
+    System.out.println("Update statement:" + sqlBuilder.toString());
     int parameterIndex = 1;
     PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
     for (Entry<String, Object> paramEntry : parameterMap.entrySet()) {
@@ -226,9 +203,10 @@ public class SqlQueryBuilder {
   public PreparedStatement createDeleteByIdStatement(Connection connection,
       Class<? extends AbstractBaseEntity> entityClass, Map<String, Object> filters)
           throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     BiMap<String, String> entityNameToDBNameMapping =
-        columnMappingPerTable.get(tableName).inverse();
+        entityMappingHolder.columnMappingPerTable.get(tableName).inverse();
     StringBuilder sqlBuilder = new StringBuilder("DELETE FROM " + tableName);
     StringBuilder whereClause = new StringBuilder(" WHERE ");
     LinkedHashMap<String, Object> parametersMap = new LinkedHashMap<>();
@@ -240,7 +218,8 @@ public class SqlQueryBuilder {
     sqlBuilder.append(whereClause.toString());
     PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
     int parameterIndex = 1;
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    LinkedHashMap<String, ColumnInfo> columnInfoMap =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
     for (Entry<String, Object> paramEntry : parametersMap.entrySet()) {
       String dbFieldName = paramEntry.getKey();
       ColumnInfo info = columnInfoMap.get(dbFieldName);
@@ -249,16 +228,12 @@ public class SqlQueryBuilder {
     return prepareStatement;
   }
 
-  class ColumnInfo {
-    String columnNameInDB;
-    int sqlType;
-    String columnNameInEntity;
-    Field field;
-  }
+
 
   public PreparedStatement createFindAllStatement(Connection connection,
       Class<? extends AbstractBaseEntity> entityClass) throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     String sql = "Select * from " + tableName;
     PreparedStatement prepareStatement = connection.prepareStatement(sql);
     return prepareStatement;
@@ -266,9 +241,10 @@ public class SqlQueryBuilder {
 
   public PreparedStatement createFindByParamsStatement(Connection connection,
       Class<? extends AbstractBaseEntity> entityClass, Predicate predicate) throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     BiMap<String, String> entityNameToDBNameMapping =
-        columnMappingPerTable.get(tableName).inverse();
+        entityMappingHolder.columnMappingPerTable.get(tableName).inverse();
     StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM " + tableName);
     StringBuilder whereClause = new StringBuilder(" WHERE ");
     LinkedHashMap<String, Object> parametersMap = new LinkedHashMap<>();
@@ -276,7 +252,8 @@ public class SqlQueryBuilder {
     sqlBuilder.append(whereClause.toString());
     PreparedStatement prepareStatement = connection.prepareStatement(sqlBuilder.toString());
     int parameterIndex = 1;
-    LinkedHashMap<String, ColumnInfo> columnInfoMap = columnInfoPerTable.get(tableName);
+    LinkedHashMap<String, ColumnInfo> columnInfoMap =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
     for (Entry<String, Object> paramEntry : parametersMap.entrySet()) {
       String dbFieldName = paramEntry.getKey();
       ColumnInfo info = columnInfoMap.get(dbFieldName);
@@ -317,7 +294,8 @@ public class SqlQueryBuilder {
   public PreparedStatement createStatementFromSQL(Connection connection, String parameterizedSQL,
       Map<String, Object> parameterMap, Class<? extends AbstractBaseEntity> entityClass)
           throws Exception {
-    String tableName = tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
+    String tableName =
+        entityMappingHolder.tableToEntityNameMap.inverse().get(entityClass.getSimpleName());
     parameterizedSQL = parameterizedSQL.replace(entityClass.getSimpleName(), tableName);
     StringBuilder psSql = new StringBuilder();
     List<String> paramNames = new ArrayList<String>();
@@ -340,7 +318,8 @@ public class SqlQueryBuilder {
     // Any stragglers?
     psSql.append(parameterizedSQL.substring(index));
     String sql = psSql.toString();
-    BiMap<String, String> dbNameToEntityNameMapping = columnMappingPerTable.get(tableName);
+    BiMap<String, String> dbNameToEntityNameMapping =
+        entityMappingHolder.columnMappingPerTable.get(tableName);
     for (Entry<String, String> entry : dbNameToEntityNameMapping.entrySet()) {
       String dbName = entry.getKey();
       String entityName = entry.getValue();
@@ -349,11 +328,16 @@ public class SqlQueryBuilder {
     System.out.println("Generated SQL:" + sql);
     PreparedStatement ps = connection.prepareStatement(sql);
     int parameterIndex = 1;
-    LinkedHashMap<String, ColumnInfo> columnInfo = columnInfoPerTable.get(tableName);
+    LinkedHashMap<String, ColumnInfo> columnInfo =
+        entityMappingHolder.columnInfoPerTable.get(tableName);
     for (String entityFieldName : paramNames) {
       String dbFieldName = dbNameToEntityNameMapping.inverse().get(entityFieldName);
-      ps.setObject(parameterIndex++, parameterMap.get(entityFieldName).toString(),
-          columnInfo.get(dbFieldName).sqlType);
+
+      Object val = parameterMap.get(entityFieldName);
+      if (Enum.class.isAssignableFrom(val.getClass())) {
+        val = val.toString();
+      }
+      ps.setObject(parameterIndex++, val, columnInfo.get(dbFieldName).sqlType);
     }
 
     return ps;

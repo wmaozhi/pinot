@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,12 +15,15 @@ import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 import com.linkedin.thirdeye.dbi.GenericResultSetMapper;
 import com.linkedin.thirdeye.dbi.Predicate;
 import com.linkedin.thirdeye.dbi.SqlQueryBuilder;
+
 import javax.sql.DataSource;
 
 public class AbstractBaseDAO<E extends AbstractBaseEntity> {
 
   final Class<E> entityClass;
-  final GenericResultSetMapper genericResultSetMapper = new GenericResultSetMapper();
+
+  @Inject
+  GenericResultSetMapper genericResultSetMapper;
 
   @Inject
   SqlQueryBuilder sqlQueryBuilder;
@@ -43,9 +47,10 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
   }
 
   public Long save(E entity) {
-    if(entity.getId() != null){
+    if (entity.getId() != null) {
       //either throw exception or invoke update
-      throw new RuntimeException("id must be null when inserting new record. If you are trying to update call update");
+      throw new RuntimeException(
+          "id must be null when inserting new record. If you are trying to update call update");
     }
     return runTask(new Task<Long>() {
       @Override
@@ -88,7 +93,7 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
         ResultSet resultSet = selectStatement.executeQuery();
         return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
       }
-    }, null);
+    }, Collections.emptyList());
   }
 
   public int deleteById(Long id) {
@@ -121,12 +126,12 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
     return runTask(new Task<List<E>>() {
       @Override
       public List<E> handle(Connection connection) throws Exception {
-        PreparedStatement selectStatement =
-            sqlQueryBuilder.createStatementFromSQL(connection, parameterizedSQL, parameterMap, entityClass);
+        PreparedStatement selectStatement = sqlQueryBuilder.createStatementFromSQL(connection,
+            parameterizedSQL, parameterMap, entityClass);
         ResultSet resultSet = selectStatement.executeQuery();
         return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
       }
-    }, null);
+    }, Collections.emptyList());
   }
 
 
@@ -140,7 +145,7 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
         ResultSet resultSet = selectStatement.executeQuery();
         return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
       }
-    }, null);
+    }, Collections.emptyList());
   }
 
   @SuppressWarnings("unchecked")
@@ -153,7 +158,7 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
         ResultSet resultSet = selectStatement.executeQuery();
         return (List<E>) genericResultSetMapper.mapAll(resultSet, entityClass);
       }
-    }, null);
+    }, Collections.emptyList());
   }
 
   public int update(E entity) {
@@ -171,9 +176,10 @@ public class AbstractBaseDAO<E extends AbstractBaseEntity> {
     return runTask(new Task<Integer>() {
       @Override
       public Integer handle(Connection connection) throws Exception {
-        PreparedStatement updateStatement;
-        updateStatement = sqlQueryBuilder.createUpdateStatement(connection, entity, fieldsToUpdate);
-        return updateStatement.executeUpdate();
+        try (PreparedStatement updateStatement =
+            sqlQueryBuilder.createUpdateStatement(connection, entity, fieldsToUpdate)) {
+          return updateStatement.executeUpdate();
+        }
       }
     }, 0);
   }

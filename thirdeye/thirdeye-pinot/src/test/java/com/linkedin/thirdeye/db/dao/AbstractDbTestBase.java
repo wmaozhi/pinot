@@ -51,11 +51,11 @@ public abstract class AbstractDbTestBase {
     //PersistenceUtil.init(configFile);
     anomalyFunctionDAO = DaoProviderUtil.getInstance(AnomalyFunctionDAO.class);
     anomalyResultDAO = DaoProviderUtil.getInstance(AnomalyResultDAO.class);
-//    anomalyJobDAO = DaoProviderUtil.getInstance(AnomalyJobDAO.class);
-//    anomalyTaskDAO = DaoProviderUtil.getInstance(AnomalyTaskDAO.class);
-//    emailConfigurationDAO = DaoProviderUtil.getInstance(EmailConfigurationDAO.class);
-//    mergedResultDAO = DaoProviderUtil.getInstance(AnomalyMergedResultDAO.class);
-//    webappConfigDAO = DaoProviderUtil.getInstance(WebappConfigDAO.class);
+    anomalyJobDAO = DaoProviderUtil.getInstance(AnomalyJobDAO.class);
+    anomalyTaskDAO = DaoProviderUtil.getInstance(AnomalyTaskDAO.class);
+    emailConfigurationDAO = DaoProviderUtil.getInstance(EmailConfigurationDAO.class);
+    mergedResultDAO = DaoProviderUtil.getInstance(AnomalyMergedResultDAO.class);
+    webappConfigDAO = DaoProviderUtil.getInstance(WebappConfigDAO.class);
 //    entityManager = DaoProviderUtil.getInstance(EntityManager.class);
   }
 

@@ -1,20 +1,23 @@
 package com.linkedin.thirdeye.db.dao;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.persist.Transactional;
+import com.google.common.collect.Sets;
 import com.linkedin.thirdeye.anomaly.job.JobConstants.JobStatus;
 import com.linkedin.thirdeye.db.entity.AnomalyJobSpec;
-import com.linkedin.thirdeye.dbi.Predicate;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.joda.time.DateTime;
 
 public class AnomalyJobDAO extends AbstractBaseDAO<AnomalyJobSpec> {
 
-  private static final String FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE = "from AnomalyJobSpec aj "
-      + "WHERE aj.status = :status AND aj.lastModified < :expireTimestamp";
+  private static final String FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE =
+      "select * from AnomalyJobSpec  "
+          + "WHERE status = :status AND lastModified < :lastModified";
 
   public AnomalyJobDAO() {
     super(AnomalyJobSpec.class);
@@ -25,22 +28,28 @@ public class AnomalyJobDAO extends AbstractBaseDAO<AnomalyJobSpec> {
   }
 
   public void updateStatusAndJobEndTime(Long id, JobStatus status, Long jobEndTime) {
-    AnomalyJobSpec anomalyJobSpec = findById(id);
+    AnomalyJobSpec anomalyJobSpec = new AnomalyJobSpec();
+    anomalyJobSpec.setId(id);
     anomalyJobSpec.setStatus(status);
     anomalyJobSpec.setScheduleEndTime(jobEndTime);
-    update(anomalyJobSpec);
+    Set<String> fieldsToUpdate = Sets.newHashSet("status", "scheduleEndTime");
+    update(anomalyJobSpec, fieldsToUpdate);
   }
 
   public int deleteRecordsOlderThanDaysWithStatus(int days, JobStatus status) {
     DateTime expireDate = new DateTime().minusDays(days);
     Timestamp expireTimestamp = new Timestamp(expireDate.getMillis());
-    Predicate expireTimestampPredicate = Predicate.LT("expireTimestamp", expireTimestamp);
-    Predicate statusPredicate = Predicate.EQ("status", status);
-    Predicate andPredicate = Predicate.AND(expireTimestampPredicate, statusPredicate);
-    List<AnomalyJobSpec> anomalyJobSpecs = findByParams(andPredicate);
-    for (AnomalyJobSpec anomalyJobSpec : anomalyJobSpecs) {
-      deleteById(anomalyJobSpec.getId());
+    Map<String, Object> parameterMap = new HashMap<>();
+    parameterMap.put("lastModified", expireTimestamp);
+    parameterMap.put("status", status);
+    List<AnomalyJobSpec> anomalyJobSpecs =
+        executeParameterizedSQL(FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE, parameterMap);
+    if (anomalyJobSpecs != null) {
+      for (AnomalyJobSpec anomalyJobSpec : anomalyJobSpecs) {
+        deleteById(anomalyJobSpec.getId());
+      }
+      return anomalyJobSpecs.size();
     }
-    return anomalyJobSpecs.size();
+    return 0;
   }
 }

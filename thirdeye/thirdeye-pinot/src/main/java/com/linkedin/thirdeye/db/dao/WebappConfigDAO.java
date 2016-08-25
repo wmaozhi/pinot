@@ -8,7 +8,7 @@ import java.util.Map;
 import com.linkedin.thirdeye.dashboard.configs.WebappConfigFactory.WebappConfigType;
 import com.linkedin.thirdeye.db.entity.WebappConfig;
 
-public class WebappConfigDAO  extends AbstractJpaDAO<WebappConfig> {
+public class WebappConfigDAO  extends AbstractBaseDAO<WebappConfig> {
 
   public WebappConfigDAO() {
     super(WebappConfig.class);

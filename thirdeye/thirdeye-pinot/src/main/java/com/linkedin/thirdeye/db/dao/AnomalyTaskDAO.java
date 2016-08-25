@@ -15,7 +15,7 @@ import com.linkedin.thirdeye.db.entity.AnomalyTaskSpec;
 
 public class AnomalyTaskDAO extends AbstractBaseDAO<AnomalyTaskSpec> {
 
-  private static final String FIND_BY_JOB_ID_STATUS_NOT_IN = "SELECT * FROM AnomalyTaskSpec"
+  private static final String FIND_BY_JOB_ID_STATUS_NOT_IN = "SELECT * FROM AnomalyTaskSpec "
       + "WHERE jobId = :jobId " + "AND status != :status";
 
   private static final String FIND_BY_STATUS_ORDER_BY_CREATE_TIME_ASC =
@@ -23,8 +23,8 @@ public class AnomalyTaskDAO extends AbstractBaseDAO<AnomalyTaskSpec> {
           + "order by taskStartTime asc";
 
   private static final String FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE =
-      "SELECT FROM AnomalyTaskSpec "
-          + "WHERE status = :status AND lastModified < :expireTimestamp";
+      "SELECT * FROM AnomalyTaskSpec "
+          + "WHERE status = :status AND lastModified < :lastModified";
 
   public AnomalyTaskDAO() {
     super(AnomalyTaskSpec.class);
@@ -71,7 +71,7 @@ public class AnomalyTaskDAO extends AbstractBaseDAO<AnomalyTaskSpec> {
     DateTime expireDate = new DateTime().minusDays(days);
     Timestamp expireTimestamp = new Timestamp(expireDate.getMillis());
     Map<String, Object> parameterMap = new HashMap<>();
-    parameterMap.put("expireTimestamp", expireTimestamp);
+    parameterMap.put("lastModified", expireTimestamp);
     parameterMap.put("status", status);
     List<AnomalyTaskSpec> anomalyTaskSpecs = executeParameterizedSQL(FIND_BY_STATUS_AND_LAST_MODIFIED_TIME_LT_EXPIRE, parameterMap);
     for (AnomalyTaskSpec anomalyTaskSpec : anomalyTaskSpecs) {

@@ -44,8 +44,8 @@ public class TestAnomalyTaskDAO extends AbstractDbTestBase {
     Long workerId = 1L;
 
     boolean status  = anomalyTaskDAO.updateStatusAndWorkerId(workerId, anomalyTaskId1, oldStatus, newStatus);
-    AnomalyTaskSpec anomalyTask = anomalyTaskDAO.findById(anomalyTaskId1);
     Assert.assertTrue(status);
+    AnomalyTaskSpec anomalyTask = anomalyTaskDAO.findById(anomalyTaskId1);
     Assert.assertEquals(anomalyTask.getStatus(), newStatus);
     Assert.assertEquals(anomalyTask.getWorkerId(), workerId);
   }
