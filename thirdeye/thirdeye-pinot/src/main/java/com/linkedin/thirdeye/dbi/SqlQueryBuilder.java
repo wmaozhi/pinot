@@ -1,14 +1,10 @@
 package com.linkedin.thirdeye.dbi;
 
-import java.lang.reflect.Field;
 import java.sql.Clob;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,7 +14,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Sets;
 import com.linkedin.thirdeye.db.entity.AbstractBaseEntity;
 import com.mysql.jdbc.Statement;

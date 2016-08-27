@@ -10,7 +10,6 @@ import com.linkedin.thirdeye.db.entity.AnomalyJobSpec;
 import com.linkedin.thirdeye.db.entity.AnomalyResult;
 import com.linkedin.thirdeye.db.entity.EmailConfiguration;
 import com.linkedin.thirdeye.dbi.DaoProviderUtil;
-import com.linkedin.thirdeye.dbi.dao.AnomalyFeedbackDAOTest;
 
 import java.io.File;
 import java.net.URISyntaxException;
@@ -38,7 +37,6 @@ public abstract class AbstractDbTestBase {
   protected EmailConfigurationDAO emailConfigurationDAO;
   protected AnomalyMergedResultDAO mergedResultDAO;
   protected WebappConfigDAO webappConfigDAO;
-  private EntityManager entityManager;
 
   @BeforeClass(alwaysRun = true)
   public void init() throws Exception {
@@ -68,24 +66,24 @@ public abstract class AbstractDbTestBase {
   }
 
   public void clearDatabase() throws Exception{
-    Connection c = ((SessionImpl) entityManager.getDelegate()).connection();
-    Statement s = c.createStatement();
-    s.execute("SET DATABASE REFERENTIAL INTEGRITY FALSE");
-    Set<String> tables = new HashSet<>();
-    ResultSet rs = s.executeQuery("select table_name " +
-        "from INFORMATION_SCHEMA.system_tables " +
-        "where table_type='TABLE' and table_schem='PUBLIC'");
-    while (rs.next()) {
-      if (!rs.getString(1).startsWith("DUAL_")) {
-        tables.add(rs.getString(1));
-      }
-    }
-    rs.close();
-    for (String table : tables) {
-      s.executeUpdate("DELETE FROM " + table);
-    }
-    s.execute("SET DATABASE REFERENTIAL INTEGRITY TRUE");
-    s.close();
+//    Connection c = ((SessionImpl) entityManager.getDelegate()).connection();
+//    Statement s = c.createStatement();
+//    s.execute("SET DATABASE REFERENTIAL INTEGRITY FALSE");
+//    Set<String> tables = new HashSet<>();
+//    ResultSet rs = s.executeQuery("select table_name " +
+//        "from INFORMATION_SCHEMA.system_tables " +
+//        "where table_type='TABLE' and table_schem='PUBLIC'");
+//    while (rs.next()) {
+//      if (!rs.getString(1).startsWith("DUAL_")) {
+//        tables.add(rs.getString(1));
+//      }
+//    }
+//    rs.close();
+//    for (String table : tables) {
+//      s.executeUpdate("DELETE FROM " + table);
+//    }
+//    s.execute("SET DATABASE REFERENTIAL INTEGRITY TRUE");
+//    s.close();
   }
 
   protected AnomalyFunctionSpec getTestFunctionSpec(String metricName, String collection) {

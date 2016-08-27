@@ -115,7 +115,7 @@
     <groupId>com.h2database</groupId>
     <artifactId>h2</artifactId>
     <version>1.4.192</version>
-</dependency>    
+</dependency>
     <dependency>
       <groupId>com.google.inject.extensions</groupId>
       <artifactId>guice-persist</artifactId>
@@ -132,10 +132,6 @@
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
     </dependency>
-    <dependency>
-     <groupId>org.hibernate</groupId>
-     <artifactId>hibernate-c3p0</artifactId>
-   </dependency>
 
     <!--UI dependencies -->
     <dependency>

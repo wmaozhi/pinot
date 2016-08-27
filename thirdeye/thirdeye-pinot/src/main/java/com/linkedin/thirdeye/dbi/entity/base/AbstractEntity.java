@@ -1,4 +1,4 @@
-package com.linkedin.thirdeye.dbi.entity;
+package com.linkedin.thirdeye.dbi.entity.base;
 
 /**
  * Abstract superclass for entities with an id of type long.

@@ -15,7 +15,6 @@ import com.linkedin.thirdeye.db.entity.AnomalyResult;
 import com.linkedin.thirdeye.db.entity.AnomalyTaskSpec;
 import com.linkedin.thirdeye.db.entity.EmailConfiguration;
 import com.linkedin.thirdeye.db.entity.WebappConfig;
-import com.linkedin.thirdeye.dbi.entity.MergeConfig;
 
 import io.dropwizard.configuration.ConfigurationFactory;
 import io.dropwizard.jackson.Jackson;
@@ -79,7 +78,6 @@ public abstract class DaoProviderUtil {
         entityMappingHolder.register(conn, AnomalyResult.class, "ANOMALY_RESULTS");
         entityMappingHolder.register(conn, AnomalyTaskSpec.class, "ANOMALY_TASKS");
         entityMappingHolder.register(conn, EmailConfiguration.class, "EMAIL_CONFIGURATIONS");
-        entityMappingHolder.register(conn, MergeConfig.class, "MERGE_CONFIG");
         entityMappingHolder.register(conn, WebappConfig.class, "WEBAPP_CONFIGS");
       } catch (Exception e) {
         throw new RuntimeException(e);
