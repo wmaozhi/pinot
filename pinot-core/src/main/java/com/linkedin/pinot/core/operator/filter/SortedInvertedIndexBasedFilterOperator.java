@@ -129,7 +129,7 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
 
         // If the current range is adjacent or overlaps with the previous range, merge it into the previous range,
         // otherwise add the previous range and keep the current one to be added
-        if (!IntRanges.rangesAreMergeable(lastPair, currentPair)) {
+        if (IntRanges.rangesAreMergeable(lastPair, currentPair)) {
           IntRanges.mergeIntoFirst(lastPair, currentPair);
         } else {
           if (!IntRanges.isInvalid(lastPair)) {
