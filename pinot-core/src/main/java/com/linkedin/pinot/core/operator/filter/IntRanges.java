@@ -24,6 +24,8 @@ import com.linkedin.pinot.common.utils.Pairs;
  * Various utilities to deal with integer ranges, with both bounds being inclusive (eg. for docId ranges).
  */
 public class IntRanges {
+  private static final boolean ENABLE_PRECONDITION_CHECKS = false;
+
   /**
    * Clips a range in place, making sure that its lower value is greater or equals to lowerBound and its upper value is
    * smaller or equals to upperBound.
@@ -38,24 +40,29 @@ public class IntRanges {
   }
 
   /**
-   * Checks whether a range is degenerate (upper bound lower to the lower bound)
+   * Checks whether a range is invalid (upper bound lower to the lower bound)
    *
-   * @return true if the range is degenerate
+   * @return true if the range is invalid
    */
-  public static boolean isDegenerate(Pairs.IntPair range) {
+  public static boolean isInvalid(Pairs.IntPair range) {
     return range.getRight() < range.getLeft();
   }
 
   /**
-   * Checks whether two ranges are disjoint (not overlapping or adjacent), assuming neither is degenerate.
+   * Checks whether two ranges are mergeable (either overlapping or adjacent), assuming neither is degenerate.
    *
    * @param firstRange The first range to check
    * @param secondRange The second range to check
    */
-  public static boolean rangesAreDisjoint(Pairs.IntPair firstRange, Pairs.IntPair secondRange) {
-    Preconditions.checkArgument(!isDegenerate(firstRange));
-    Preconditions.checkArgument(!isDegenerate(secondRange));
-    return firstRange.getRight() < secondRange.getLeft() - 1 || secondRange.getRight() < firstRange.getLeft() - 1;
+  public static boolean rangesAreMergeable(Pairs.IntPair firstRange, Pairs.IntPair secondRange) {
+    if (ENABLE_PRECONDITION_CHECKS) {
+      Preconditions.checkArgument(!isInvalid(firstRange));
+      Preconditions.checkArgument(!isInvalid(secondRange));
+    }
+
+    final boolean rangesAreAtLeastOneUnitApart =
+        firstRange.getRight() < secondRange.getLeft() - 1 || secondRange.getRight() < firstRange.getLeft() - 1;
+    return !rangesAreAtLeastOneUnitApart;
   }
 
   /**
@@ -65,7 +72,10 @@ public class IntRanges {
    * @param secondRange The range to merge with the first one
    */
   public static void mergeIntoFirst(Pairs.IntPair firstRange, Pairs.IntPair secondRange) {
-    Preconditions.checkArgument(!rangesAreDisjoint(firstRange, secondRange));
+    if (ENABLE_PRECONDITION_CHECKS) {
+      Preconditions.checkArgument(rangesAreMergeable(firstRange, secondRange));
+    }
+
     firstRange.setLeft(Math.min(firstRange.getLeft(), secondRange.getLeft()));
     firstRange.setRight(Math.max(firstRange.getRight(), secondRange.getRight()));
   }

@@ -19,12 +19,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.linkedin.pinot.common.utils.Pairs;
 import com.linkedin.pinot.common.utils.Pairs.IntPair;
 import com.linkedin.pinot.core.common.BlockDocIdValueSet;
 import com.linkedin.pinot.core.common.BlockId;
@@ -125,17 +122,17 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
         IntRanges.clip(currentPair, startDocId, endDocId);
 
         // If the previous range is degenerate, just keep the current one
-        if (IntRanges.isDegenerate(lastPair)) {
+        if (IntRanges.isInvalid(lastPair)) {
           lastPair = currentPair;
           continue;
         }
 
         // If the current range is adjacent or overlaps with the previous range, merge it into the previous range,
         // otherwise add the previous range and keep the current one to be added
-        if (!IntRanges.rangesAreDisjoint(lastPair, currentPair)) {
+        if (!IntRanges.rangesAreMergeable(lastPair, currentPair)) {
           IntRanges.mergeIntoFirst(lastPair, currentPair);
         } else {
-          if (!IntRanges.isDegenerate(lastPair)) {
+          if (!IntRanges.isInvalid(lastPair)) {
             pairs.add(lastPair);
           }
           lastPair = currentPair;
@@ -143,7 +140,7 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
       }
 
       // Add the last range if it's valid
-      if (!IntRanges.isDegenerate(lastPair)) {
+      if (!IntRanges.isInvalid(lastPair)) {
         pairs.add(lastPair);
       }
     }
@@ -163,7 +160,7 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
         IntPair firstHole = pairs.get(0);
         IntPair firstRange = new IntPair(startDocId, firstHole.getLeft() - 1);
 
-        if (!IntRanges.isDegenerate(firstRange)) {
+        if (!IntRanges.isInvalid(firstRange)) {
           newPairs.add(firstRange);
         }
 
@@ -173,7 +170,7 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
           IntPair previousHole = pairs.get(i - 1);
           IntPair currentHole = pairs.get(i);
           IntPair range = new IntPair(previousHole.getRight() + 1, currentHole.getLeft() - 1);
-          if (!IntRanges.isDegenerate(range)) {
+          if (!IntRanges.isInvalid(range)) {
             newPairs.add(range);
           }
         }
@@ -182,7 +179,7 @@ public class SortedInvertedIndexBasedFilterOperator extends BaseFilterOperator {
         IntPair lastHole = pairs.get(pairs.size() - 1);
         IntPair lastRange = new IntPair(lastHole.getRight() + 1, endDocId);
 
-        if (!IntRanges.isDegenerate(lastRange)) {
+        if (!IntRanges.isInvalid(lastRange)) {
           newPairs.add(lastRange);
         }
       }

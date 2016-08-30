@@ -51,36 +51,36 @@ public class IntRangesTest {
   @Test
   public void testIsDegenerate() {
     Pairs.IntPair valid = new Pairs.IntPair(10, 20);
-    assertFalse(IntRanges.isDegenerate(valid));
+    assertFalse(IntRanges.isInvalid(valid));
 
     valid = new Pairs.IntPair(15, 15);
-    assertFalse(IntRanges.isDegenerate(valid));
+    assertFalse(IntRanges.isInvalid(valid));
 
     Pairs.IntPair invalid = new Pairs.IntPair(15, 14);
-    assertTrue(IntRanges.isDegenerate(invalid));
+    assertTrue(IntRanges.isInvalid(invalid));
   }
 
   @Test
-  public void testRangesAreDisjoint() {
+  public void testRangesAreMergeable() {
     Pairs.IntPair disjointA = new Pairs.IntPair(0, 10);
     Pairs.IntPair disjointB = new Pairs.IntPair(12, 20);
-    assertTrue(IntRanges.rangesAreDisjoint(disjointA, disjointB));
-    assertTrue(IntRanges.rangesAreDisjoint(disjointB, disjointA));
+    assertFalse(IntRanges.rangesAreMergeable(disjointA, disjointB));
+    assertFalse(IntRanges.rangesAreMergeable(disjointB, disjointA));
 
     Pairs.IntPair adjacentA = new Pairs.IntPair(0, 10);
     Pairs.IntPair adjacentB = new Pairs.IntPair(11, 20);
-    assertFalse(IntRanges.rangesAreDisjoint(adjacentA, adjacentB));
-    assertFalse(IntRanges.rangesAreDisjoint(adjacentB, adjacentA));
+    assertTrue(IntRanges.rangesAreMergeable(adjacentA, adjacentB));
+    assertTrue(IntRanges.rangesAreMergeable(adjacentB, adjacentA));
 
     Pairs.IntPair overlappingA = new Pairs.IntPair(0, 10);
     Pairs.IntPair overlappingB = new Pairs.IntPair(10, 15);
-    assertFalse(IntRanges.rangesAreDisjoint(overlappingA, overlappingB));
-    assertFalse(IntRanges.rangesAreDisjoint(overlappingB, overlappingA));
+    assertTrue(IntRanges.rangesAreMergeable(overlappingA, overlappingB));
+    assertTrue(IntRanges.rangesAreMergeable(overlappingB, overlappingA));
 
     Pairs.IntPair enclosedA = new Pairs.IntPair(0, 20);
     Pairs.IntPair enclosedB = new Pairs.IntPair(5, 15);
-    assertFalse(IntRanges.rangesAreDisjoint(enclosedA, enclosedB));
-    assertFalse(IntRanges.rangesAreDisjoint(enclosedB, enclosedA));
+    assertTrue(IntRanges.rangesAreMergeable(enclosedA, enclosedB));
+    assertTrue(IntRanges.rangesAreMergeable(enclosedB, enclosedA));
   }
 
   @Test
